@@ -84,7 +84,9 @@ export function Panel({ result, hops, geek, warning, onReset, onShare, onCollaps
                 <span className="cc">{g.country ?? '--'}</span>
                 <span className="city">{g.city}</span>
                 <span className="ms" style={{ color: colorByTtl.get(g.hops[0]!.ttl) ?? '#e6edf3' }}>
-                  {g.rttMs} ms
+                  {/* Latence inconnue (sortie collée sans `ms`) : afficher
+                      « 0 ms » laisserait croire à une mesure réelle. */}
+                  {g.rttMs > 0 ? `${g.rttMs} ms` : '—'}
                 </span>
               </div>
 
