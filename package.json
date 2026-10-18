@@ -1,0 +1,28 @@
+{
+  "name": "geotrace",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run dev -w @geotrace/server",
+    "dev:web": "npm run dev -w @geotrace/web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -b",
+    "clean": "tsc -b --clean"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "concurrently": "^10.0.6",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

@@ -1,0 +1,1297 @@
+:root {
+  --bg: #070b14;
+  --panel: #0d1117;
+  --border: #30363d;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  /* Bleu d'accent, unique sur tout le site. */
+  --accent: #5b5bf0;
+  --accent-strong: #5b5bf0;
+  --accent-soft: #7b7bf5;
+  --accent-deep: #4343cc;
+  /* Polices de jemaos.com : Inter pour le texte, Manrope pour les titres. */
+  --font-body: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-head: Manrope, Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+.brand,
+.target,
+.recent-title {
+  font-family: var(--font-head);
+  /* Réglage de jemaos.com pour ses titres. */
+  letter-spacing: -0.01em;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * Barres de défilement : fines, sombres, pouce bleu-gris arrondi sur fond
+ * transparent — le dessin du site de référence. Jamais d'ascenseur
+ * horizontal (voir overflow-x sur .sidebar).
+ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(91, 91, 240, 0.55) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 0;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(91, 91, 240, 0.55);
+  border-radius: 8px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.app {
+  position: relative;
+  height: 100%;
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------- coller */
+
+.paste {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 24px;
+}
+
+.paste h1 {
+  font-size: 30px;
+  margin: 0 0 10px;
+}
+
+.paste h1 span,
+.brand span {
+  color: var(--accent);
+}
+
+.paste p {
+  color: var(--muted);
+  margin: 0 0 22px;
+  line-height: 1.5;
+}
+
+.paste code {
+  background: #161b22;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 13px;
+}
+
+.paste label {
+  display: block;
+  font-size: 12px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.paste textarea {
+  width: 100%;
+  height: 260px;
+  resize: vertical;
+  background: #0b0f17;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.paste textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.paste .hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.paste .hint em {
+  color: #c9d1d9;
+  font-style: normal;
+}
+
+.os-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  align-items: center;
+}
+
+button.primary {
+  flex: 1;
+  background: var(--accent-strong);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+  padding: 13px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button.primary:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+button.ghost {
+  background: #161b22;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-weight: 600;
+  padding: 13px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.error {
+  margin-top: 16px;
+  color: #ff7b72;
+  font-size: 14px;
+}
+
+/* --------------------------------------------------------------- résultat */
+
+.brand {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  font-weight: 800;
+  z-index: 3;
+}
+
+.sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 100%;
+  background: rgba(13, 17, 23, 0.92);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(6px);
+  padding: 48px 16px 14px;
+  overflow-y: auto;
+  /* `overflow-y: auto` rend l'axe X `auto` lui aussi : on le ferme pour ne
+     jamais voir d'ascenseur horizontal (le contenu se replie ou se coupe). */
+  overflow-x: hidden;
+  z-index: 2;
+}
+
+.sidebar .target {
+  font-weight: 700;
+  font-size: 17px;
+  word-break: break-all;
+  margin-bottom: 14px;
+}
+
+.groups {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.group:hover {
+  background: #161b22;
+}
+
+.group .idx {
+  color: var(--muted);
+  width: 26px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+}
+
+.group .city {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group .cc {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Pastille pays : rendue partout (les emojis drapeau ne s'affichent pas sous Windows). */
+.group .chip {
+  background: #161b22;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 11px;
+  font-family: Consolas, monospace;
+  color: #c9d1d9;
+  min-width: 26px;
+  text-align: center;
+}
+
+.group .ms {
+  font-family: Consolas, monospace;
+  font-size: 13px;
+}
+
+.group .km {
+  color: var(--muted);
+  font-size: 11px;
+  width: 100%;
+  padding-left: 34px;
+}
+
+.ghops {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 8px 8px 34px;
+}
+
+.ghop {
+  display: flex;
+  gap: 8px;
+  font-family: Consolas, monospace;
+  font-size: 12px;
+  color: #c9d1d9;
+}
+
+.ghop .as {
+  color: var(--muted);
+}
+
+.metrics {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.metrics b {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.toolbar button {
+  background: #161b22;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.toolbar button.on {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+}
+
+.legend {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  background: rgba(13, 17, 23, 0.82);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 9px 11px;
+  backdrop-filter: blur(4px);
+  z-index: 3;
+}
+
+.legend .title {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.4px;
+}
+
+.legend .bar {
+  height: 9px;
+  width: 140px;
+  border-radius: 4px;
+}
+
+.legend .scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.canvas-wrap {
+  position: absolute;
+  inset: 0;
+}
+
+.spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--muted);
+  z-index: 4;
+}
+
+.notice {
+  position: absolute;
+  top: 112px;
+  right: 16px;
+  max-width: 330px;
+  background: rgba(13, 17, 23, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  z-index: 3;
+}
+
+.notice b {
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------ barre du haut */
+
+.topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 5;
+  background: linear-gradient(to bottom, rgba(7, 11, 20, 0.9), rgba(7, 11, 20, 0));
+  pointer-events: none;
+}
+
+.topbar > * {
+  pointer-events: auto;
+}
+
+.inline-brand {
+  position: static;
+  font-weight: 800;
+}
+
+.topbar nav {
+  display: flex;
+  gap: 14px;
+}
+
+.topbar nav button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+
+.topbar nav button:hover {
+  color: var(--text);
+}
+
+/* --------------------------------------------------------------- contr�les */
+
+.ctrl-left,
+.ctrl-right {
+  position: absolute;
+  top: 56px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  z-index: 4;
+}
+
+.ctrl-left {
+  left: 316px;
+}
+
+.ctrl-right {
+  right: 16px;
+}
+
+.seg {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+  background: rgba(13, 17, 23, 0.82);
+}
+
+.seg button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.seg button.on {
+  background: var(--accent);
+  color: #fff;
+}
+
+.ctrl-right button,
+.ctrl-right select {
+  background: rgba(13, 17, 23, 0.82);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ctrl-right button.on {
+  border-color: var(--accent);
+  color: var(--accent-soft);
+}
+
+.bottom-actions {
+  position: absolute;
+  left: 316px;
+  bottom: 16px;
+  z-index: 4;
+}
+
+/* ------------------------------------------------------------------ modale */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 6, 12, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  padding: 20px;
+}
+
+.modal {
+  width: 100%;
+  max-width: 560px;
+  max-height: 86vh;
+  overflow: auto;
+  background: #0b1220;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-head h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.modal-head .x {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.modal-body {
+  padding: 8px 20px 20px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.modal-body p,
+.modal-body ul {
+  color: #c9d1d9;
+}
+
+.modal-body ul {
+  padding-left: 20px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid #1a2230;
+}
+
+.row b {
+  font-weight: 600;
+}
+
+.row.check {
+  justify-content: flex-start;
+}
+
+.row.check span {
+  display: flex;
+  flex-direction: column;
+}
+
+.row small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.row select {
+  background: #0b0f17;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.primary.inline {
+  flex: 0 0 auto;
+  padding: 10px 18px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* ----------------------------------------------------------------- carte 2D */
+
+.map2d {
+  position: absolute;
+  inset: 0;
+  /* Fixee par l'apparence (looks.ts) ; filtre des tuiles applique en ligne. */
+  background: var(--map2d-bg, #12222e);
+}
+
+/* Mode Jour/Nuit : les lumieres des villes s'ajoutent au fond de carte. */
+.leaflet-lights-pane {
+  mix-blend-mode: screen;
+}
+
+/*
+ * La carte dessine la route sur un canevas dans overlayPane, au-dessus du
+ * panneau des cables. Sans ceci, ce canevas capte tous les evenements et les
+ * infobulles de cables ne s'affichent plus. La route n'est pas interactive.
+ */
+.leaflet-overlay-pane canvas {
+  pointer-events: none;
+}
+
+.map2d .leaflet-container {
+  background: var(--map2d-bg, #070b14);
+  font-family: inherit;
+}
+
+
+.map2d .leaflet-control-attribution {
+  background: rgba(13, 17, 23, 0.8);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.map2d .leaflet-control-attribution a {
+  color: var(--accent-soft);
+}
+
+.map2d .leaflet-tooltip {
+  background: #0d1117;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+}
+
+/* --------------------------------------------------------------- drapeaux */
+
+.flag {
+  width: 18px;
+  height: 13px;
+  border-radius: 2px;
+  background-size: cover;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* ------------------------------------------------------- bouton principal */
+
+button.primary {
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--accent) 55%, var(--accent-deep) 100%);
+  box-shadow: 0 2px 10px rgba(31, 111, 235, 0.35);
+}
+
+.cta-wrap {
+  margin: 18px 0 12px;
+}
+
+.primary.cta {
+  width: 100%;
+  display: block;
+  font-size: 15px;
+  padding: 13px 16px;
+}
+
+/* --------------------------------------------------------- barre du bas */
+
+.bottom-bar {
+  position: absolute;
+  left: 316px;
+  right: 210px;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  z-index: 4;
+}
+
+.play {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(13, 17, 23, 0.9);
+  color: var(--accent-soft);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.play:hover {
+  border-color: var(--accent);
+}
+
+.timeline {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent), var(--accent-deep));
+  outline: none;
+  cursor: pointer;
+}
+
+.timeline::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  border: 2px solid #0b1220;
+  box-shadow: 0 0 8px rgba(121, 192, 255, 0.6);
+}
+
+.timeline::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  border: 2px solid #0b1220;
+}
+
+/* ------------------------------------------------- carte 2D (style d'origine) */
+
+.map2d {
+  position: absolute;
+  inset: 0;
+  background: var(--map2d-bg, #12222e);
+}
+
+.map2d .leaflet-container {
+  background: var(--map2d-bg, #12222e);
+  font-family: inherit;
+}
+
+
+.map2d .leaflet-control-zoom {
+  display: none !important;
+}
+
+.map2d .leaflet-control-attribution {
+  background: rgba(13, 17, 23, 0.8);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.map2d .leaflet-control-attribution a {
+  color: var(--accent-soft);
+}
+
+.map2d .leaflet-popup-content-wrapper {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #e6edf3;
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.map2d .leaflet-popup-tip {
+  background: #161b22;
+}
+
+.map2d .leaflet-popup-content {
+  margin: 10px 14px;
+  line-height: 1.6;
+}
+
+.map2d .leaflet-popup-close-button {
+  display: none !important;
+}
+
+.popup-num {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.popup-label {
+  color: rgba(200, 212, 235, 0.75);
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.popup-rtt {
+  color: #3fb950;
+}
+
+.popup-coords {
+  color: #8b949e;
+  font-size: 10px;
+}
+
+.cable-tooltip {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  color: var(--accent);
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+#topo-toast {
+  position: absolute;
+  bottom: 24px;
+  left: 316px;
+  z-index: 2000;
+  background: rgba(30, 30, 30, 0.62);
+  color: #f0883e;
+  border: 1px solid rgba(240, 136, 62, 0.4);
+  border-radius: 8px;
+  padding: 14px 40px 14px 16px;
+  font-size: 13px;
+  line-height: 1.5;
+  backdrop-filter: blur(6px);
+  max-width: 500px;
+}
+
+#topo-toast-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: rgba(240, 136, 62, 0.7);
+  font-size: 14px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+#topo-toast-close:hover {
+  color: #f0883e;
+}
+
+@media (max-width: 680px) {
+  #topo-toast {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------ panneau : actions */
+
+.target-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.target-row .target {
+  margin: 0;
+}
+
+.share {
+  flex: 0 0 auto;
+  background: #161b22;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.share:hover {
+  color: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+/* Flèche des boutons de volet : pivotée en vue empilée, jamais le cadre. */
+.chev {
+  display: inline-block;
+  line-height: 1;
+}
+
+/* Bouton de repli : dans le volet, en haut à droite. Il ne dépassait avant
+   hors du panneau, ce qui créait un ascenseur horizontal puis le faisait
+   rogner par `overflow-x: hidden` : il doit tenir entièrement dedans. */
+.sidebar .collapse {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: #21262d;
+  border: 1px solid #4a5560;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+  z-index: 4;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.sidebar .collapse:hover,
+.sidebar .collapse:focus-visible {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #ffffff;
+}
+
+.sidebar {
+  padding-right: 18px;
+}
+
+.panel-open {
+  position: absolute;
+  top: 52px;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 48px;
+  border-radius: 0 6px 6px 0;
+  background: rgba(33, 38, 45, 0.95);
+  border: 1px solid #4a5560;
+  border-left: none;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  z-index: 6;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.panel-open:hover,
+.panel-open:focus-visible {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: #ffffff;
+}
+
+/* ------------------------------------------------------------ r�cents */
+
+.recent {
+  margin-top: 14px;
+}
+
+.recent-title {
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.recent-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.recent-row button {
+  background: none;
+  border: none;
+  color: #c9d1d9;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+  font-size: 12px;
+}
+
+.recent-row button:hover {
+  color: var(--accent-soft);
+}
+
+.recent-row .dot {
+  color: var(--accent);
+  margin-right: 6px;
+}
+
+.recent-empty {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 4px 0;
+}
+
+/* ------------------------------------------------------------ langue */
+
+.lang-pill {
+  margin-left: 12px;
+  background: rgba(13, 17, 23, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 3px 10px;
+  font-size: 12px;
+  color: #c9d1d9;
+  cursor: default;
+}
+
+.topbar .inline-brand {
+  margin-right: 0;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Isole le canvas : sans �a, les panneaux Leaflet (z-index 400+) passent
+   au-dessus du panneau lat�ral et de la barre du haut. */
+.canvas-wrap {
+  z-index: 0;
+}
+
+.origin-row {
+  margin-top: 16px;
+}
+
+.origin-row input {
+  width: 100%;
+  background: #0b0f17;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.origin-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.lang-pill .caret {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  margin-left: 6px;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #c9d1d9;
+  vertical-align: middle;
+}
+
+img.flag {
+  width: 18px;
+  height: 13px;
+  object-fit: cover;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* ------------------------------------------------------- mobile (empil�) */
+
+@media (max-width: 680px) {
+  .app {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    max-height: 46vh;
+    overflow-y: auto;
+    padding: 54px 14px 14px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    z-index: 3;
+  }
+
+  /* En vue empilée, le volet se replie vers le haut : la flèche devient une
+     barre pleine largeur, toujours visible (le bord du panneau est hors écran). */
+  .sidebar .collapse,
+  .panel-open {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: static;
+    width: 100%;
+    height: 30px;
+    margin: 0 0 12px;
+    border: 1px solid #4a5560;
+    border-radius: 6px;
+    background: #21262d;
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .sidebar .collapse .chev,
+  .panel-open .chev {
+    /* « ‹ » et « › » pivotées à 90° vers le bas/haut. */
+    transform: rotate(90deg);
+  }
+
+  .panel-open {
+    position: absolute;
+    top: 54px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    margin: 0;
+    background: rgba(33, 38, 45, 0.95);
+    z-index: 6;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    inset: auto;
+    flex: 1 1 auto;
+    min-height: 54vh;
+    z-index: 0;
+  }
+
+  .ctrl-left,
+  .ctrl-right {
+    top: auto;
+    bottom: 58px;
+  }
+
+  .ctrl-left { left: 12px; }
+  .ctrl-right { right: 12px; }
+
+  .bottom-bar {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .legend {
+    right: 8px;
+    bottom: 8px;
+  }
+
+  .notice {
+    display: none;
+  }
+
+  .target-row .target {
+    font-size: 15px;
+  }
+
+  .metrics {
+    font-size: 13px;
+  }
+}
+
+
+/* Point de depart du visiteur (#0). */
+.client-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  background: #12122c;
+  border: 1px solid #2a2a55;
+  font-size: 14px;
+}
+
+.client-row .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+  flex: 0 0 auto;
+}
+
+.client-row .city {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.client-row .ms {
+  color: var(--muted);
+  font-family: Consolas, monospace;
+  font-size: 13px;
+}
+
+.client-row .client-ip {
+  width: 100%;
+  padding-left: 34px;
+  color: var(--muted);
+  font-family: Consolas, monospace;
+  font-size: 11px;
+}
+
+
+/* Infobulle des noeuds du globe. */
+.globe-tip {
+  position: absolute;
+  top: 104px;
+  right: 16px;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(13, 17, 23, 0.94);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  pointer-events: none;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.globe-tip .num {
+  color: var(--accent-soft);
+  font-family: Consolas, monospace;
+  font-weight: 700;
+}
+
+.globe-tip img {
+  width: 18px;
+  height: 13px;
+  border-radius: 2px;
+}
+
+.globe-tip .cc {
+  color: var(--muted);
+}
+
+.globe-tip .ms {
+  color: #3fb950;
+  font-family: Consolas, monospace;
+}

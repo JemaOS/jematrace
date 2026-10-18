@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/traceroute-parse" },
+    { "path": "../../packages/geo" },
+    { "path": "../../packages/cable-routing" },
+    { "path": "../../packages/seg-speed" }
+  ]
+}

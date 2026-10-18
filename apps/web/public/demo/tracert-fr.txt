@@ -1,0 +1,22 @@
+Détermination de l’itinéraire vers exemple.com [103.224.182.245]
+avec un maximum de 30 sauts :
+
+  1     3 ms     3 ms     3 ms  192.168.1.1
+  2     6 ms     5 ms     4 ms  80.15.224.25
+  3     8 ms     8 ms     7 ms  92.184.150.30
+  4     7 ms     7 ms    10 ms  ae43-0.nimar202.rbci.orange.net [193.252.103.241]
+  5    17 ms    20 ms    17 ms  193.252.137.54
+  6     *        *        *     Délai d’attente de la demande dépassé.
+  7    24 ms    28 ms    19 ms  be3184.ccr42.par01.atlas.cogentco.com [154.54.38.157]
+  8    97 ms    95 ms    94 ms  port-channel2813.ccr92.dca04.atlas.cogentco.com [154.54.82.2]
+  9   113 ms   111 ms   111 ms  be3483.ccr42.atl01.atlas.cogentco.com [154.54.172.170]
+ 10   238 ms   201 ms   203 ms  port-channel3704.ccr92.jan02.atlas.cogentco.com [154.54.40.110]
+ 11   181 ms   130 ms   138 ms  be8122.ccr32.dfw01.atlas.cogentco.com [154.54.41.53]
+ 12   155 ms   155 ms   220 ms  be3846.ccr22.elp02.atlas.cogentco.com [154.54.165.30]
+ 13   276 ms   203 ms   156 ms  be5473.ccr32.phx01.atlas.cogentco.com [154.54.166.70]
+ 14   183 ms   155 ms   197 ms  be4725.rcr62.san01.atlas.cogentco.com [154.54.86.61]
+ 15   206 ms   201 ms   156 ms  be8977.nr61.b022887-0.san01.atlas.cogentco.com [154.24.25.146]
+ 16   218 ms   204 ms   202 ms  38.140.111.58
+ 17   241 ms   160 ms   245 ms  sw02-te2-san.trellian.com [103.224.213.218]
+ 18   158 ms   156 ms   155 ms  lb-182-245.above.com [103.224.182.245]
+Itinéraire déterminé.

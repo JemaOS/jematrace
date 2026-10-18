@@ -1,0 +1,11 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/traceroute-parse" },
+    { "path": "packages/seg-speed" },
+    { "path": "packages/geo" },
+    { "path": "packages/cable-routing" },
+    { "path": "apps/server" }
+  ]
+}

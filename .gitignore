@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Donnees volumineuses / sous licence, non versionnees
+packages/geo-data/geoip/
+data/geoip/
+.env
+.env.local
+
+# Sources brutes des jeux de donnees (regenerables via tools/, voir README)
+data/geo/FR.txt
+data/geo/FR.zip
+data/geo/ne_10m_places.geojson

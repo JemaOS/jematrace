@@ -1,0 +1,24 @@
+{
+  "name": "@geotrace/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "@geotrace/cable-routing": "*",
+    "@geotrace/geo": "*",
+    "@geotrace/seg-speed": "*",
+    "@geotrace/shared": "*",
+    "@geotrace/traceroute-parse": "*",
+    "fastify": "^5.1.0",
+    "maxmind": "^5.0.7"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2"
+  }
+}
