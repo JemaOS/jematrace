@@ -571,8 +571,12 @@ export default function App() {
           geek={prefs.geek}
           client={isDemo ? null : data.client}
           onReset={() => {
+            // Nouvelle trace : la zone de collage doit être vide, pas
+            // pré-remplie avec la démonstration ou la trace précédente.
             setData(null);
             setError(null);
+            setLastText('');
+            setIsDemo(false);
           }}
           onShare={share}
           onCollapse={() => setPanelOpen(false)}
