@@ -1,5 +1,5 @@
 import 'leaflet/dist/leaflet.css';
-import { StrictMode, useMemo, useState } from 'react';
+import { StrictMode, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import App from './App';
@@ -22,6 +22,12 @@ function Root() {
     }),
     [lang],
   );
+
+  // L'attribut `lang` du document suit la langue : lecture d'écran, césure et
+  // correction orthographique en dépendent.
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   return (
     <LangContext.Provider value={value}>

@@ -3,7 +3,7 @@
  * monde en cache pour un démarrage instantané, et laisse passer les appels à
  * l'API (ils dépendent du réseau).
  */
-const CACHE = 'geotrace-v1';
+const CACHE = 'routescope-v1';
 const SHELL = ['/', '/index.html', '/icon.svg', '/manifest.webmanifest', '/world/world-110m.json'];
 
 self.addEventListener('install', (event) => {
