@@ -256,6 +256,208 @@ function parseTracepath(lines: string[], warnings: string[]): { target: string |
   return { target: null, destIp: null, maxHops: null, hops: [...byTtl.values()] };
 }
 
+/* --------------------------------------- copier-coller abîmé (terminal mobile) */
+
+/**
+ * Un copier-coller depuis un terminal mobile abîme souvent la sortie :
+ *   - tout est mis sur une seule ligne (retours à la ligne perdus) ;
+ *   - une IP est coupée en deux (« 80.15.22 4.25 ») ;
+ *   - un point devient une virgule (« 172,217.18.9 ») ;
+ *   - les latences disparaissent.
+ *
+ * Les parseurs de format ne peuvent rien en faire, mais l'essentiel reste
+ * récupérable : l'ordre des sauts et les IP. C'est ce que fait ce filet de
+ * sécurité, utilisé uniquement quand l'analyse normale n'a trouvé aucun saut.
+ */
+
+/** Nettoie un jeton : ponctuation de bord retirée, espaces ignorés. */
+function cleanToken(token: string): string {
+  return token.replace(/^[.,;:]+/, '').replace(/[.,;:]+$/, '');
+}
+
+/** Candidat IP : crochets/parenthèses retirés, virgules converties en points. */
+function toIp(raw: string): string | null {
+  const clean = raw
+    .replace(/^[[(]+/, '')
+    .replace(/[\])]+$/, '')
+    .replace(/,/g, '.');
+  if (!IPV4.test(clean)) return null;
+  return clean.split('.').every((o) => Number.parseInt(o, 10) <= 255) ? clean : null;
+}
+
+/**
+ * Recolle les IP coupées par un espace.
+ *
+ * Les fenêtres les plus longues sont essayées d'abord : « 193.252.1 03.24 1 »
+ * doit donner `193.252.103.241`, pas `193.252.103.24` suivi d'un `1` orphelin.
+ */
+function rejoinIps(text: string): string {
+  const tokens = text.split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  let i = 0;
+
+  while (i < tokens.length) {
+    const first = tokens[i]!;
+    const next = tokens[i + 1];
+    const alone = toIp(cleanToken(first));
+
+    /**
+     * Deux indices disent qu'une IP a été coupée alors qu'elle est déjà
+     * syntaxiquement valide (`172.217.18.9` est une IP : le `9` final manque) :
+     *  - le jeton suivant porte une fermeture de crochet/parenthèse ;
+     *  - l'IP contient une virgule, trace d'un point transformé au collage.
+     */
+    const cutHint = Boolean(next) && (/[\])]$/.test(next!) || first.includes(','));
+
+    // Une IP complète et non suspecte ne doit jamais absorber le jeton suivant :
+    // « 1.2.3.4 5 » resterait sinon « 1.2.3.45 ».
+    if (alone && !cutHint) {
+      out.push(alone);
+      i += 1;
+      continue;
+    }
+
+    // On ne recolle que si le premier morceau est déjà pointé : sinon le numéro
+    // de saut (« 1 ») fusionnerait avec l'IP suivante (« 1.2.3.4 » → 11.2.3.4).
+    if (/[.,]/.test(cleanToken(first))) {
+      let matched = false;
+      for (let n = Math.min(5, tokens.length - i); n >= 2; n--) {
+        const ip = toIp(tokens.slice(i, i + n).map(cleanToken).join(''));
+        if (ip) {
+          out.push(ip);
+          i += n;
+          matched = true;
+          break;
+        }
+      }
+      if (matched) continue;
+    }
+
+    if (alone) {
+      out.push(alone);
+      i += 1;
+      continue;
+    }
+
+    out.push(first);
+    i += 1;
+  }
+
+  return out.join(' ');
+}
+
+interface Recovered {
+  target: string | null;
+  destIp: string | null;
+  hops: Hop[];
+}
+
+/**
+ * Reconstitue une trace à partir d'un texte aplati : en-tête, suite
+ * « ttl IP » (ou « ttl nom [IP] », « ttl * »), et IP orphelines replacées dans
+ * les sauts manquants.
+ */
+function recoverMangledTrace(text: string): Recovered | null {
+  const repaired = rejoinIps(text);
+
+  let target: string | null = null;
+  let destIp: string | null = null;
+  let body = repaired;
+
+  const head =
+    /\b(?:trace\s*route|traceroute|tracert)\s+(?:to\s+)?([A-Za-z0-9.-]+\.[A-Za-z]{2,})\s*[[(]?\s*([0-9.,]+)\s*[\])]?/i.exec(
+      repaired,
+    );
+  if (head) {
+    target = head[1] ?? null;
+    destIp = toIp(head[2] ?? '') ?? (head[2] ?? null);
+    // On retire l'en-tête : son IP ne doit pas être prise pour un saut.
+    body = repaired.replace(head[0], ' ');
+  }
+
+  const tokens = body.split(/\s+/).filter(Boolean);
+  const pairs: Array<{ ttl: number; ip: string | null }> = [];
+  const consumed = new Set<number>();
+
+  for (let i = 0; i < tokens.length; i++) {
+    if (consumed.has(i)) continue;
+    const token = tokens[i]!;
+    if (!/^\d{1,2}$/.test(token)) continue;
+    const ttl = Number.parseInt(token, 10);
+    if (ttl < 1 || ttl > 64) continue;
+
+    const next = tokens[i + 1];
+    if (next === '*') {
+      pairs.push({ ttl, ip: null });
+      consumed.add(i);
+      consumed.add(i + 1);
+      continue;
+    }
+
+    const direct = next ? toIp(cleanToken(next)) : null;
+    if (direct) {
+      pairs.push({ ttl, ip: direct });
+      consumed.add(i);
+      consumed.add(i + 1);
+      continue;
+    }
+
+    // Forme « ttl  nom [ip] » : on saute le nom, mais seulement s'il en est un
+    // (un simple chiffre serait un décalage du collage, pas un nom).
+    const host = next;
+    const after = tokens[i + 2];
+    if (host && /[A-Za-z]/.test(host) && after) {
+      const ip = toIp(cleanToken(after));
+      if (ip) {
+        pairs.push({ ttl, ip });
+        consumed.add(i);
+        consumed.add(i + 1);
+        consumed.add(i + 2);
+      }
+    }
+  }
+
+  if (pairs.length < 2) return null;
+
+  // IP présentes mais non rattachées à un saut : elles comblent les trous.
+  const orphans: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    if (consumed.has(i)) continue;
+    const ip = toIp(cleanToken(tokens[i]!));
+    if (ip) orphans.push(ip);
+  }
+
+  const byTtl = new Map<number, string | null>();
+  for (const pair of pairs) {
+    if (!byTtl.has(pair.ttl)) byTtl.set(pair.ttl, pair.ip);
+  }
+
+  const maxTtl = Math.max(...byTtl.keys());
+  let orphanIndex = 0;
+  for (let ttl = 1; ttl <= maxTtl && orphanIndex < orphans.length; ttl++) {
+    if (!byTtl.has(ttl)) {
+      byTtl.set(ttl, orphans[orphanIndex]!);
+      orphanIndex += 1;
+    }
+  }
+
+  const hops: Hop[] = [...byTtl.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([ttl, ip]) => ({
+      ttl,
+      ip,
+      host: null,
+      // Latences perdues au collage : la vitesse ne sera pas calculable, mais
+      // la route reste géolocalisable et affichable.
+      rttMs: [],
+      timeout: ip === null,
+      private: ip !== null ? isPrivateIp(ip) : false,
+    }));
+
+  if (!destIp) destIp = [...hops].reverse().find((h) => h.ip)?.ip ?? null;
+  return { target, destIp, hops };
+}
+
 /* ------------------------------------------------------------------ public */
 
 function detectFormat(text: string): TraceFormat {
@@ -273,7 +475,7 @@ export function parseTraceroute(input: string): ParsedTrace {
   const lines = text.split('\n').map((l) => l.replace(/\s+$/, ''));
   const format = detectFormat(text);
 
-  const parsed =
+  let parsed =
     format === 'tracert'
       ? parseTracert(lines, warnings)
       : format === 'mtr'
@@ -281,6 +483,19 @@ export function parseTraceroute(input: string): ParsedTrace {
         : format === 'tracepath'
           ? parseTracepath(lines, warnings)
           : parseTracerouteLinux(lines, warnings);
+
+  // Aucun saut reconnu : le texte a peut-être été aplati par un copier-coller
+  // mobile. On tente la reconstitution avant de renoncer.
+  if (parsed.hops.length === 0) {
+    const recovered = recoverMangledTrace(text);
+    if (recovered && recovered.hops.length >= 2) {
+      warnings.length = 0;
+      warnings.push(
+        'Sortie abîmée par le copier-coller : sauts et IP reconstitués, latences indisponibles (vitesse non calculable).',
+      );
+      parsed = { ...recovered, maxHops: null };
+    }
+  }
 
   const hops = parsed.hops.slice().sort((a, b) => a.ttl - b.ttl);
 

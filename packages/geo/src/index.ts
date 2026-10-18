@@ -328,7 +328,11 @@ export function inferPath({ hops, ptr, geo, anchor }: InferInput): ResolvedHop[]
       if (origin === null) {
         chosen = candidates[0] ?? null;
       } else {
-        const allowed = KM_PER_RTT_MS * rttMs + LATENCY_MARGIN_KM;
+        // La borne de latence n'a de sens que si l'on connaît le RTT. Sans
+        // mesure (sortie collée sans latences), `allowed` tomberait à 150 km et
+        // rejetterait tous les candidats : les sauts resteraient sans
+        // coordonnées, donc invisibles sur la carte.
+        const allowed = rttMs > 0 ? KM_PER_RTT_MS * rttMs + LATENCY_MARGIN_KM : Number.POSITIVE_INFINITY;
         chosen = candidates.find((c) => haversine(origin!, [c.lat, c.lon]) <= allowed) ?? null;
       }
     }

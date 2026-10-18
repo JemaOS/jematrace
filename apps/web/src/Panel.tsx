@@ -18,6 +18,8 @@ interface Props {
   hops: InspectHop[];
   /** Mode geek : déplie chaque ville sur ses sauts et affiche les km par segment. */
   geek: boolean;
+  /** Avertissement d'analyse (ex. latences absentes après un copier-coller). */
+  warning?: string;
   onReset: () => void;
   onShare: () => void;
   onCollapse: () => void;
@@ -28,7 +30,7 @@ interface Props {
 }
 
 /** Panneau de gauche : groupes de villes, métriques, détail des sauts, récents. */
-export function Panel({ result, hops, geek, onReset, onShare, onCollapse, recent, onPickRecent, client }: Props) {
+export function Panel({ result, hops, geek, warning, onReset, onShare, onCollapse, recent, onPickRecent, client }: Props) {
   const { t } = useT();
   const [open, setOpen] = useState<number | null>(null);
   // Une liaison courte ou terrestre n'emprunte aucun câble : Topo et Ligne
@@ -94,7 +96,7 @@ export function Panel({ result, hops, geek, onReset, onShare, onCollapse, recent
                     <div className="ghop" key={`${h.ttl}-${h.ip}`}>
                       <span>{h.ip || '—'}</span>
                       <span className="as">[AS{h.asn ?? 0}]</span>
-                      <span>{h.rttMs} ms</span>
+                      <span>{h.rttMs > 0 ? `${h.rttMs} ms` : '—'}</span>
                     </div>
                   ))}
                 </div>
@@ -121,6 +123,7 @@ export function Panel({ result, hops, geek, onReset, onShare, onCollapse, recent
         {/* Sur une liaison courte ou entièrement terrestre, aucun câble
             sous-marin n'est emprunté : les deux modes donnent le même tracé.
             Le dire évite de croire que le bouton Topo/Ligne ne fait rien. */}
+        {warning && <div className="metrics-note">{warning}</div>}
         {!hasCableRoute && <div className="metrics-note">{t('panel.noCable')}</div>}
       </div>
 

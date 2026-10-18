@@ -197,13 +197,19 @@ app.post<{ Body: InspectBody }>('/api/inspect', async (request, reply): Promise<
     colorByTtl.set(toHop.ttl, hex(segmentRGB(seg.km, seg.rttDeltaMs)));
   });
 
+  // Un saut est « muet » quand il n'a pas répondu — information connue du
+  // parseur (`timeout`). On ne peut pas la déduire de `rttMs === 0` : une sortie
+  // sans latences (copier-coller abîmé) a des rttMs nuls mais des relais qui
+  // ont bien répondu.
+  const timeoutByTtl = new Map(parsed.hops.map((h) => [h.ttl, h.timeout]));
+
   return {
     result,
     client,
     hops: hops.map((h) => ({
       ...h,
       color: colorByTtl.get(h.ttl) ?? '#8b949e',
-      timeout: h.rttMs === 0 && !h.private,
+      timeout: timeoutByTtl.get(h.ttl) ?? (h.rttMs === 0 && !h.private),
       ...(polylineByTtl.has(h.ttl) ? { polyline: polylineByTtl.get(h.ttl) } : {}),
     })),
     format: parsed.format,

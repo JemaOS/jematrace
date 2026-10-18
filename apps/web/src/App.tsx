@@ -603,6 +603,7 @@ export default function App() {
           result={data.result}
           hops={data.hops}
           geek={prefs.geek}
+          warning={data.warnings[0]}
           client={data.client}
           onReset={newTrace}
           onShare={share}

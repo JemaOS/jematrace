@@ -154,4 +154,46 @@ describe('robustesse', () => {
     expect(r.hops).toEqual([]);
     expect(r.warnings.length).toBeGreaterThan(0);
   });
+
+  it('reconstitue une sortie aplatie par un copier-coller mobile', () => {
+    // Cas réel : une seule ligne, IP coupées par des espaces, une virgule à la
+    // place d'un point, latences perdues et un numéro de saut décalé.
+    const mangled =
+      'TRACEROUTE google.fr [172.217.18.9 9]  3  1 192.168.1.1 2 80.15.22 4.25 ' +
+      '92.184.150.30 4 193.252.1 03.24 1 5 *  6 72.14.20 3.56 7 172,217.18.9 9  Trace completed.';
+
+    const r = parseTraceroute(mangled);
+
+    expect(r.target).toBe('google.fr');
+    expect(r.destIp).toBe('172.217.18.99');
+    expect(r.hops.map((h) => h.ttl)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(r.hops.map((h) => h.ip)).toEqual([
+      '192.168.1.1',
+      '80.15.224.25',
+      '92.184.150.30',
+      '193.252.103.241',
+      null,
+      '72.14.203.56',
+      '172.217.18.99',
+    ]);
+    // Saut muet conservé, pas de latence inventée.
+    expect(r.hops[4]!.timeout).toBe(true);
+    expect(r.hops[1]!.rttMs).toEqual([]);
+    expect(r.warnings.join(' ')).toMatch(/copier-coller/);
+  });
+
+  it('ne fusionne pas un numéro de saut avec l\'IP qui suit', () => {
+    // « 1 1.2.3.4 » doit rester le saut 1 → 1.2.3.4, et non 11.2.3.4.
+    const r = parseTraceroute('TRACEROUTE exemple.fr [9.9.9.9] 1 1.2.3.4 2 5.6.7.8');
+    expect(r.hops.map((h) => h.ttl)).toEqual([1, 2]);
+    expect(r.hops[0]!.ip).toBe('1.2.3.4');
+    expect(r.hops[1]!.ip).toBe('5.6.7.8');
+  });
+
+  it('laisse les formats valides intacts', () => {
+    // Le filet de sécurité ne doit jamais s'activer sur une sortie correcte.
+    const r = parseTraceroute(TRACERT_FR);
+    expect(r.warnings).toEqual([]);
+    expect(r.hops).toHaveLength(18);
+  });
 });
