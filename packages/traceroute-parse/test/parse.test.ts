@@ -190,6 +190,46 @@ describe('robustesse', () => {
     expect(r.hops[1]!.ip).toBe('5.6.7.8');
   });
 
+  it('remet les sauts dans l’ordre quand les numéros ont été détachés des IP', () => {
+    // Collage réel : les numéros de saut sont regroupés en tête (« 1 6 7 8 9 »),
+    // les IP suivent dans le bon ordre, et la cible contient une virgule.
+    const mangled =
+      "TRACEROUTE Alibaba. com [47,246,136.253]  1  6 7 8' 9  \u3001  192.168.1.1 2  " +
+      '80.15.22 4.25 39 92.184.150.30  193.252.1 03.24 1 51 193.252.137.54  ' +
+      '154.54.38.157 154.54.88.218 *  10  11 12 13  * * *  47.246.136.253  Trace completed.';
+
+    const r = parseTraceroute(mangled);
+
+    expect(r.target).toBe('Alibaba.com');
+    expect(r.destIp).toBe('47.246.136.253');
+
+    // Les numéros de saut étant incohérents, on numérote dans l'ordre des IP.
+    expect(r.hops.map((h) => h.ip)).toEqual([
+      '192.168.1.1',
+      '80.15.224.25',
+      '92.184.150.30',
+      '193.252.103.241',
+      '193.252.137.54',
+      '154.54.38.157',
+      '154.54.88.218',
+      '47.246.136.253',
+    ]);
+    expect(r.hops.map((h) => h.ttl)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    // La dernière IP de la sortie doit rester le dernier saut.
+    expect(r.hops.at(-1)!.ip).toBe('47.246.136.253');
+  });
+
+  it('conserve les numéros de saut quand ils sont cohérents', () => {
+    // Ici les TTL collent aux IP : on garde la numérotation d'origine, trous
+    // compris (le saut 5 n'a pas répondu).
+    const r = parseTraceroute(
+      'TRACEROUTE google.fr [172.217.18.9 9] 1 192.168.1.1 2 80.15.22 4.25 ' +
+        '92.184.150.30 4 193.252.1 03.24 1 5 * 6 72.14.20 3.56 7 172,217.18.9 9',
+    );
+    expect(r.hops.map((h) => h.ttl)).toEqual([1, 2, 3, 4, 5, 6, 7]);
+    expect(r.hops[4]!.ip).toBeNull();
+  });
+
   it('laisse les formats valides intacts', () => {
     // Le filet de sécurité ne doit jamais s'activer sur une sortie correcte.
     const r = parseTraceroute(TRACERT_FR);

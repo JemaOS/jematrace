@@ -353,24 +353,35 @@ interface Recovered {
 }
 
 /**
+ * Retire la ponctuation parasite introduite par les claviers et correcteurs
+ * mobiles (guillemets typographiques, virgules idéographiques, points de
+ * suspension…). Seul le filet de récupération l'utilise.
+ */
+function scrub(text: string): string {
+  return text.replace(/[\u2018\u2019\u201b"'«»\u3001\u3002\uff0c\uff1b;|]/g, ' ');
+}
+
+/**
  * Reconstitue une trace à partir d'un texte aplati : en-tête, suite
  * « ttl IP » (ou « ttl nom [IP] », « ttl * »), et IP orphelines replacées dans
  * les sauts manquants.
  */
 function recoverMangledTrace(text: string): Recovered | null {
-  const repaired = rejoinIps(text);
+  const repaired = rejoinIps(scrub(text));
 
   let target: string | null = null;
   let destIp: string | null = null;
   let body = repaired;
 
+  // Le domaine peut être coupé par un espace (« Alibaba. com ») et l'IP écrite
+  // avec des virgules (« 47,246,136.253 »).
   const head =
-    /\b(?:trace\s*route|traceroute|tracert)\s+(?:to\s+)?([A-Za-z0-9.-]+\.[A-Za-z]{2,})\s*[[(]?\s*([0-9.,]+)\s*[\])]?/i.exec(
+    /\b(?:trace\s*route|traceroute|tracert)\s+(?:to\s+)?([A-Za-z0-9-]+(?:\s*\.\s*[A-Za-z0-9-]+)+)\s*[[(]?\s*([0-9][0-9.,]*)/i.exec(
       repaired,
     );
   if (head) {
-    target = head[1] ?? null;
-    destIp = toIp(head[2] ?? '') ?? (head[2] ?? null);
+    target = (head[1] ?? '').replace(/\s+/g, '') || null;
+    destIp = toIp(head[2] ?? '');
     // On retire l'en-tête : son IP ne doit pas être prise pour un saut.
     body = repaired.replace(head[0], ' ');
   }
@@ -417,42 +428,66 @@ function recoverMangledTrace(text: string): Recovered | null {
     }
   }
 
-  if (pairs.length < 2) return null;
-
-  // IP présentes mais non rattachées à un saut : elles comblent les trous.
-  const orphans: string[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    if (consumed.has(i)) continue;
-    const ip = toIp(cleanToken(tokens[i]!));
-    if (ip) orphans.push(ip);
+  // Toutes les IP, dans leur ordre d'apparition : c'est le seul ordre fiable
+  // quand les numéros de saut ont été détachés par le copier-coller.
+  const ipsInOrder: string[] = [];
+  for (const token of tokens) {
+    const ip = toIp(cleanToken(token));
+    if (ip) ipsInOrder.push(ip);
   }
+
+  if (pairs.length < 2 && ipsInOrder.length < 2) return null;
 
   const byTtl = new Map<number, string | null>();
   for (const pair of pairs) {
     if (!byTtl.has(pair.ttl)) byTtl.set(pair.ttl, pair.ip);
   }
+  const maxTtl = byTtl.size > 0 ? Math.max(...byTtl.keys()) : 0;
 
-  const maxTtl = Math.max(...byTtl.keys());
-  let orphanIndex = 0;
-  for (let ttl = 1; ttl <= maxTtl && orphanIndex < orphans.length; ttl++) {
-    if (!byTtl.has(ttl)) {
-      byTtl.set(ttl, orphans[orphanIndex]!);
-      orphanIndex += 1;
+  /**
+   * Les numéros de saut ne sont exploitables que s'ils collent à la réalité.
+   * Sur un collage très abîmé, ils se retrouvent séparés des IP — typiquement
+   * `1 6 7 8 9 … 192.168.1.1 80.15.224.25 …` : les associer produirait un
+   * ordre faux (et un nombre de sauts absurde). Dans ce cas, seule la suite des
+   * IP est fiable : on numérote dans leur ordre d'apparition, ce qui garantit
+   * que la dernière IP de la sortie reste bien le dernier saut.
+   */
+  const coherent = pairs.length >= Math.max(2, Math.ceil(ipsInOrder.length * 0.6)) && maxTtl <= ipsInOrder.length + 4;
+
+  const toHop = (ttl: number, ip: string | null): Hop => ({
+    ttl,
+    ip,
+    host: null,
+    // Latences perdues au collage : la vitesse ne sera pas calculable, mais
+    // la route reste géolocalisable et affichable.
+    rttMs: [],
+    timeout: ip === null,
+    private: ip !== null ? isPrivateIp(ip) : false,
+  });
+
+  let hops: Hop[];
+
+  if (coherent) {
+    // IP présentes mais non rattachées à un saut : elles comblent les trous.
+    const orphans: string[] = [];
+    for (let i = 0; i < tokens.length; i++) {
+      if (consumed.has(i)) continue;
+      const ip = toIp(cleanToken(tokens[i]!));
+      if (ip) orphans.push(ip);
     }
-  }
 
-  const hops: Hop[] = [...byTtl.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([ttl, ip]) => ({
-      ttl,
-      ip,
-      host: null,
-      // Latences perdues au collage : la vitesse ne sera pas calculable, mais
-      // la route reste géolocalisable et affichable.
-      rttMs: [],
-      timeout: ip === null,
-      private: ip !== null ? isPrivateIp(ip) : false,
-    }));
+    let orphanIndex = 0;
+    for (let ttl = 1; ttl <= maxTtl && orphanIndex < orphans.length; ttl++) {
+      if (!byTtl.has(ttl)) {
+        byTtl.set(ttl, orphans[orphanIndex]!);
+        orphanIndex += 1;
+      }
+    }
+
+    hops = [...byTtl.entries()].sort((a, b) => a[0] - b[0]).map(([ttl, ip]) => toHop(ttl, ip));
+  } else {
+    hops = ipsInOrder.map((ip, index) => toHop(index + 1, ip));
+  }
 
   if (!destIp) destIp = [...hops].reverse().find((h) => h.ip)?.ip ?? null;
   return { target, destIp, hops };
