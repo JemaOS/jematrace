@@ -238,12 +238,32 @@ export function Map2D({
       map.setMinZoom(zoom);
       if (map.getZoom() < zoom) map.setZoom(zoom);
     };
+
+    /**
+     * Quand la zone change de taille (volet replié, rotation de l'écran,
+     * passage en 2D sur mobile), Leaflet garde sa taille interne : les tuiles
+     * s'arrêtent au milieu et la carte n'occupe plus tout l'espace. Il faut le
+     * lui dire explicitement.
+     */
+    let frame = 0;
+    const onResize = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        fitMinZoom();
+        map.invalidateSize({ animate: false, pan: false });
+      });
+    };
+
     fitMinZoom();
-    const observer = new ResizeObserver(fitMinZoom);
+    const observer = new ResizeObserver(onResize);
     observer.observe(hostRef.current!);
+    window.addEventListener('orientationchange', onResize);
 
     return () => {
       observer.disconnect();
+      window.removeEventListener('orientationchange', onResize);
+      if (frame) cancelAnimationFrame(frame);
       // Vider les groupes AVANT de détruire la carte : sinon Leaflet retire le
       // moteur canevas avant ses tracés, et ceux-ci programment un redessin sur
       // un contexte déjà détruit (`clearRect` sur undefined).
@@ -473,9 +493,14 @@ export function Map2D({
 
     const bounds = L.latLngBounds(latlngs);
     if (bounds.isValid()) {
+      // Le volet ne recouvre la carte qu'en vue large : sur mobile il est
+      // au-dessus, donc l'ancien retrait de 330 px gaspillait la largeur et
+      // repoussait le tracé hors champ. Le bas réserve la place des contrôles.
+      const host = hostRef.current;
+      const wide = (host?.clientWidth ?? window.innerWidth) > 680;
       map.fitBounds(bounds, {
-        paddingTopLeft: [330, 40],
-        paddingBottomRight: [40, 60],
+        paddingTopLeft: wide ? [330, 40] : [24, 56],
+        paddingBottomRight: wide ? [40, 60] : [24, 150],
         animate: false,
       });
     }
