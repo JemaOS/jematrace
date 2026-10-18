@@ -11,7 +11,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev": "tsc -b && concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
     "dev:api": "npm run dev -w @geotrace/server",
     "dev:web": "npm run dev -w @geotrace/web",
     "test": "vitest run",
