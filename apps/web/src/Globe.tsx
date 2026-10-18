@@ -851,31 +851,57 @@ function Stars({ color }: { color: string }) {
 }
 
 function Camera({ focus }: { focus: THREE.Vector3 | null }) {
-  const { camera, gl } = useThree();
+  const { camera, gl, size } = useThree();
   const controls = useRef<OrbitControls | null>(null);
+
+  /**
+   * Distance à laquelle le globe (atmosphère comprise) tient entièrement dans
+   * la vue.
+   *
+   * Le fov est **vertical** : sur un écran étroit, c'est la largeur qui
+   * contraint. Il faut alors reculer bien plus que sur un écran large. Sans ce
+   * calcul, le plafond de dézoom (1 000) coupait le globe sur mobile et
+   * empêchait de le voir en entier.
+   */
+  const fitDistance = useMemo(() => {
+    const halfV = (30 * DEG) / 2;
+    const aspect = size.width / Math.max(1, size.height);
+    const halfH = Math.atan(Math.tan(halfV) * aspect);
+    const half = Math.min(halfV, halfH);
+    return (R * 1.18) / Math.max(0.05, Math.sin(half)) + 40;
+  }, [size.width, size.height]);
 
   useEffect(() => {
     const c = new OrbitControls(camera as THREE.PerspectiveCamera, gl.domElement);
     c.enableDamping = true;
     c.dampingFactor = 0.08;
-    c.minDistance = 500;
-    c.maxDistance = 1000;
     c.enablePan = false;
+    // On peut reculer nettement au-delà du cadrage « globe entier » — c'est ce
+    // qui manquait : l'ancien plafond fixe de 1 000 empêchait de dézoomer sur
+    // mobile — sans pour autant réduire le globe à un point.
+    c.maxDistance = fitDistance * 1.6;
+    c.minDistance = Math.max(260, R * 1.3);
+    c.update();
     controls.current = c;
     return () => c.dispose();
-  }, [camera, gl]);
+  }, [camera, gl, fitDistance]);
 
   useEffect(() => {
     if (!focus) return;
+    // Grand écran : cadrage de référence (820). Écran étroit : distance
+    // calculée, sinon le globe arrive déjà coupé en arrivant sur la page.
+    const aspect = size.width / Math.max(1, size.height);
+    const distance = aspect >= 1.1 ? Math.min(820, fitDistance) : fitDistance;
     const dir = focus
       .clone()
       .normalize()
       .applyAxisAngle(new THREE.Vector3(0, 0, 1), TILT)
-      .multiplyScalar(820);
+      .multiplyScalar(distance);
     if (dir.length() < 1) dir.set(0, 120, 820);
     camera.position.copy(dir);
     camera.lookAt(0, 0, 0);
-  }, [focus, camera]);
+    controls.current?.update();
+  }, [focus, camera, fitDistance, size.width, size.height]);
 
   useFrame(() => controls.current?.update());
   return null;

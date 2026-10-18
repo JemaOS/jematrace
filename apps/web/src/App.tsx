@@ -317,10 +317,6 @@ export default function App() {
     }
   });
 
-  const locatedCount = useMemo(
-    () => (data?.hops ?? []).filter((h) => h.lat !== null && h.lon !== null).length,
-    [data],
-  );
 
   /**
    * Repr�sentants pour la carte 2D : un point par ville (comme l'original),
@@ -345,16 +341,16 @@ export default function App() {
 
   /** Point de depart : l'IP publique du visiteur, placee en #0. */
   const clientHop = useMemo<InspectHop | null>(() => {
-    // En mode démonstration, l'IP du visiteur sert d'ancre mais n'est jamais
-    // affichée : pas de ligne #0, pas de marqueur d'origine.
-    const c = isDemo ? null : data?.client;
+    // Position du visiteur (#0), déduite de son IP : elle s'affiche aussi sur
+    // la démonstration, pour que chacun voie son propre point de départ.
+    const c = data?.client;
     if (!c) return null;
     return {
       ttl: 0, ip: c.ip, host: null, rttMs: 0, asn: null, asName: null,
       country: null, continent: null, city: c.city, lat: c.lat, lon: c.lon,
       confidence: 1, private: false, estimated: false, color: '#5b5bf0', timeout: false,
     };
-  }, [data, isDemo]);
+  }, [data]);
 
   const mapHopsWithClient = useMemo(
     () => (clientHop ? [clientHop, ...mapHops] : mapHops),
@@ -371,8 +367,6 @@ export default function App() {
    * puis faisait ressortir chaque ville : elle faisait varier la luminosité en
    * continu. Le tracé et les villes sont désormais statiques.
    */
-  const shown = locatedCount;
-  const active = -1;
 
   const look = useMemo(() => lookById(prefs.look), [prefs.look]);
 
@@ -544,6 +538,9 @@ export default function App() {
         <button className="brand inline-brand" onClick={goHome} title="Retour à l'accueil">
           Route<span>Scope</span>
         </button>
+        {/* Langue et navigation forment un seul bloc à droite : séparées, le
+            `space-between` du bandeau plaçait le sélecteur au milieu. */}
+        <div className="topbar-right">
           <button
             className="lang-pill"
             title="Choisir la langue / Choose language"
@@ -552,10 +549,11 @@ export default function App() {
             {lang.toUpperCase()}
             <i className="caret" />
           </button>
-        <nav>
-          <button onClick={() => { setDraft(prefs); setModal('prefs'); }}>{t('nav.prefs')}</button>
-          <button onClick={() => setModal('credits')}>{t('nav.credits')}</button>
-        </nav>
+          <nav>
+            <button onClick={() => { setDraft(prefs); setModal('prefs'); }}>{t('nav.prefs')}</button>
+            <button onClick={() => setModal('credits')}>{t('nav.credits')}</button>
+          </nav>
+        </div>
       </header>
 
       {panelOpen ? (
@@ -563,7 +561,7 @@ export default function App() {
           result={data.result}
           hops={data.hops}
           geek={prefs.geek}
-          client={isDemo ? null : data.client}
+          client={data.client}
           onReset={goHome}
           onShare={share}
           onCollapse={() => setPanelOpen(false)}
@@ -583,7 +581,7 @@ export default function App() {
       <div className="canvas-wrap">
         <Suspense fallback={<div className="spinner">Chargement du globe...</div>}>
         {prefs.view === '2d' ? (
-          <Map2D hops={mapHopsWithClient} limit={Math.min(shown, mapHops.length)} showCables={prefs.cables} look={look} />
+          <Map2D hops={mapHopsWithClient} showCables={prefs.cables} look={look} />
         ) : (
           <Globe hops={globeHops} look={look} showCities={prefs.cities} showCables={prefs.cables} />
         )}

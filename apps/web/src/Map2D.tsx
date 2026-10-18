@@ -179,12 +179,10 @@ interface CableFile {
 
 export function Map2D({
   hops,
-  limit,
   showCables,
   look,
 }: {
   hops: InspectHop[];
-  limit?: number;
   showCables: boolean;
   look: Look;
 }) {
@@ -198,6 +196,8 @@ export function Map2D({
   const borderGroupRef = useRef<L.FeatureGroup | null>(null);
   const borderRendererRef = useRef<L.Canvas | null>(null);
   const cableDataRef = useRef<CableFile | null>(null);
+  const boundsRef = useRef<L.LatLngBounds | null>(null);
+  const fitToRouteRef = useRef<(() => void) | null>(null);
   const [toast, setToast] = useState(true);
 
   useEffect(() => {
@@ -218,6 +218,26 @@ export function Map2D({
       wheelDebounceTime: 40,
       zoomAnimationThreshold: 6,
     }).setView([30, -20], 2);
+
+    /**
+     * Cadre le trace. On le rejoue après chaque changement de taille : au
+     * premier passage, le conteneur peut ne pas encore avoir sa taille, et
+     * itBounds retombait alors sur le zoom minimal (globe entier, trace
+     * minuscule au centre).
+     */
+    const fitToRoute = () => {
+      const bounds = boundsRef.current;
+      if (!bounds?.isValid()) return;
+      const host = hostRef.current;
+      if (!host || host.clientWidth < 40 || host.clientHeight < 40) return;
+      const wide = host.clientWidth > 680;
+      map.fitBounds(bounds, {
+        paddingTopLeft: wide ? [330, 40] : [24, 56],
+        paddingBottomRight: wide ? [40, 60] : [24, 150],
+        animate: false,
+      });
+    };
+    fitToRouteRef.current = fitToRoute;
 
     map.createPane(LIGHTS_PANE).style.zIndex = '250';
     map.createPane(BORDER_PANE).style.zIndex = '320';
@@ -252,6 +272,7 @@ export function Map2D({
         frame = 0;
         fitMinZoom();
         map.invalidateSize({ animate: false, pan: false });
+        fitToRouteRef.current?.();
       });
     };
 
@@ -452,7 +473,7 @@ export function Map2D({
 
     layer.clearLayers();
     const all = hops.filter((h) => h.lat !== null && h.lon !== null);
-    const located = limit === undefined ? all : all.slice(0, limit);
+    const located = all;
     if (located.length === 0) return;
 
     const latlngs: Array<[number, number]> = [];
@@ -491,21 +512,13 @@ export function Map2D({
       }
     }
 
-    const bounds = L.latLngBounds(latlngs);
-    if (bounds.isValid()) {
-      // Le volet ne recouvre la carte qu'en vue large : sur mobile il est
-      // au-dessus, donc l'ancien retrait de 330 px gaspillait la largeur et
-      // repoussait le tracé hors champ. Le bas réserve la place des contrôles.
-      const host = hostRef.current;
-      const wide = (host?.clientWidth ?? window.innerWidth) > 680;
-      map.fitBounds(bounds, {
-        paddingTopLeft: wide ? [330, 40] : [24, 56],
-        paddingBottomRight: wide ? [40, 60] : [24, 150],
-        animate: false,
-      });
-    }
+    boundsRef.current = L.latLngBounds(latlngs);
+    // Deux passes : la première avec la taille courante, la seconde une fois
+    // la mise en page stabilisée (voir itToRoute).
+    fitToRouteRef.current?.();
+    requestAnimationFrame(() => fitToRouteRef.current?.());
     layer.bringToFront();
-  }, [hops, limit, look]);
+  }, [hops, look]);
 
   return (
     <>

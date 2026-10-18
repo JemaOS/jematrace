@@ -496,6 +496,13 @@ button.ghost {
   pointer-events: auto;
 }
 
+/* Langue + navigation : un seul bloc collé à droite. */
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .inline-brand {
   position: static;
   font-weight: 800;
