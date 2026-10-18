@@ -15,7 +15,8 @@ import { open, type CityResponse, type Reader } from 'maxmind';
 import type { Hop, ResolvedHop } from '@geotrace/shared';
 
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+
+import { findDataFile } from './data.js';
 
 const DOH = 'https://cloudflare-dns.com/dns-query';
 
@@ -127,18 +128,14 @@ let localReader: Promise<Reader<CityResponse> | null> | null = null;
 
 function getLocalReader(): Promise<Reader<CityResponse> | null> {
   localReader ??= (async () => {
-    const candidates = [
-      new URL('../../../packages/geo-data/geoip/dbip-city-lite.mmdb', import.meta.url),
-      new URL('../../../../packages/geo-data/geoip/dbip-city-lite.mmdb', import.meta.url),
-    ];
-    for (const url of candidates) {
-      try {
-        return await open<CityResponse>(fileURLToPath(url));
-      } catch {
-        // fichier absent ou illisible : on essaie le chemin suivant
-      }
+    const file = findDataFile('packages/geo-data/geoip/dbip-city-lite.mmdb', import.meta.url);
+    if (!file) return null;
+    try {
+      return await open<CityResponse>(file);
+    } catch {
+      // fichier illisible : la géolocalisation passera par le service public
+      return null;
     }
-    return null;
   })();
   return localReader;
 }
@@ -344,14 +341,15 @@ function getNamedCities(): Array<[string, number, number, number]> {
   if (namedCities) return namedCities;
   const rows: Array<[string, number, number, number]> = [];
   for (const rel of [
-    '../../../apps/web/public/world/cities-named.json',
-    '../../../data/geo/cities-fr.json',
+    'apps/web/public/world/cities-named.json',
+    'data/geo/cities-fr.json',
   ]) {
+    const file = findDataFile(rel, import.meta.url);
+    if (!file) continue;
     try {
-      const url = new URL(rel, import.meta.url);
-      rows.push(...(JSON.parse(readFileSync(fileURLToPath(url), 'utf8')) as Array<[string, number, number, number]>));
+      rows.push(...(JSON.parse(readFileSync(file, 'utf8')) as Array<[string, number, number, number]>));
     } catch {
-      // fichier absent : on continue
+      // fichier illisible : on continue
     }
   }
   namedCities = rows;

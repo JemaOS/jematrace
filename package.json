@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b",
+    "build": "tsc -b && npm run build -w @geotrace/web",
     "clean": "tsc -b --clean"
   },
   "devDependencies": {

@@ -13,28 +13,25 @@ import { buildCableGraph, routeHop, type Cable, type CableGraph } from '@geotrac
 import type { LatLon } from '@geotrace/geo';
 
 import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
-const CANDIDATES = [
-  new URL('../../../data/cables/cables.json', import.meta.url),
-  new URL('../../../../data/cables/cables.json', import.meta.url),
-];
+import { findDataFile } from './data.js';
 
 let loaded: CableGraph | null | undefined;
 
 function load(): CableGraph | null {
   if (loaded !== undefined) return loaded;
 
-  for (const url of CANDIDATES) {
+  const file = findDataFile('data/cables/cables.json', import.meta.url);
+  if (file) {
     try {
-      const raw = readFileSync(fileURLToPath(url), 'utf8');
+      const raw = readFileSync(file, 'utf8');
       const parsed = JSON.parse(raw) as { cables?: Cable[] };
       if (Array.isArray(parsed.cables) && parsed.cables.length > 0) {
         loaded = buildCableGraph(parsed.cables);
         return loaded;
       }
     } catch {
-      // Fichier absent : on essaie le chemin suivant.
+      // Fichier illisible : on retombe sur les grands cercles.
     }
   }
 

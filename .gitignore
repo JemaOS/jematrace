@@ -13,3 +13,5 @@ data/geoip/
 data/geo/FR.txt
 data/geo/FR.zip
 data/geo/ne_10m_places.geojson
+
+.vercel
