@@ -197,3 +197,58 @@ describe('robustesse', () => {
     expect(r.hops).toHaveLength(18);
   });
 });
+
+describe('rapport tabulaire', () => {
+  const REPORT = `=========================================
+RAPPORT DE TRAÇAGE RÉSEAU
+Cible : alibaba.com (47.246.137.105)
+Date : 19 oct. 2026 01:18
+Nombre total de sauts : 13
+=========================================
+
+SAUT IP                 PING       PAYS             NOM D’HÔTE
+--------------------------------------------------------------------------------
+1    192.168.1.1        12.4 ms    Réseau local     -
+2    80.15.224.25       9.9 ms     France           -
+3    92.184.150.30      * * *      France           -
+4    193.252.103.241    * * *      France           -
+5    193.252.137.54     32.6 ms    France           -
+6                       * * *      Inconnu          -
+7    154.54.38.157      * * *      États-Unis       -
+8    154.54.88.218      * * *      États-Unis       -
+9                       * * *      Inconnu          -
+10                      * * *      Inconnu          -
+11                      * * *      Inconnu          -
+12                      * * *      Inconnu          -
+13   47.246.137.105     114.5 ms   États-Unis       -
+`;
+
+  const r = parseTraceroute(REPORT);
+
+  it('reconnaît le format et la cible', () => {
+    expect(r.format).toBe('report');
+    expect(r.target).toBe('alibaba.com');
+    expect(r.destIp).toBe('47.246.137.105');
+    expect(r.maxHops).toBe(13);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('lit les 13 sauts, dans l’ordre, sans en perdre', () => {
+    expect(r.hops.map((h) => h.ttl)).toEqual(Array.from({ length: 13 }, (_, i) => i + 1));
+  });
+
+  it('extrait les IP et les latences des lignes renseignées', () => {
+    expect(r.hops[0]).toMatchObject({ ip: '192.168.1.1', rttMs: [12.4], private: true, timeout: false });
+    expect(r.hops[1]).toMatchObject({ ip: '80.15.224.25', rttMs: [9.9], timeout: false });
+    expect(r.hops[4]).toMatchObject({ ip: '193.252.137.54', rttMs: [32.6] });
+    expect(r.hops[12]).toMatchObject({ ip: '47.246.137.105', rttMs: [114.5] });
+  });
+
+  it('garde les sauts muets à leur place', () => {
+    // « * * * » avec IP connue et sans IP.
+    expect(r.hops[2]).toMatchObject({ ip: '92.184.150.30', rttMs: [], timeout: true });
+    expect(r.hops[5]).toMatchObject({ ip: null, rttMs: [], timeout: true });
+    expect(r.hops[8]!.ttl).toBe(9);
+    expect(r.hops[8]!.timeout).toBe(true);
+  });
+});

@@ -458,9 +458,83 @@ function recoverMangledTrace(text: string): Recovered | null {
   return { target, destIp, hops };
 }
 
+/* ------------------------------------------------------------------ rapport */
+
+/**
+ * Rapport tabulaire (« RAPPORT DE TRAÇAGE RÉSEAU ») :
+ *
+ *   Cible : alibaba.com (47.246.137.105)
+ *   Nombre total de sauts : 13
+ *
+ *   SAUT IP                 PING       PAYS             NOM D’HÔTE
+ *   ------------------------------------------------------------------
+ *   1    192.168.1.1        12.4 ms    Réseau local     -
+ *   3    92.184.150.30      * * *      France           -
+ *   6                       * * *      Inconnu          -
+ *
+ * Les colonnes sont alignées par au moins deux espaces ; un saut muet laisse la
+ * colonne IP vide. On lit donc les colonnes, sans supposer un nombre fixe.
+ */
+function parseReport(lines: string[], warnings: string[]): { target: string | null; destIp: string | null; maxHops: number | null; hops: Hop[] } {
+  let target: string | null = null;
+  let destIp: string | null = null;
+  let maxHops: number | null = null;
+  const hops: Hop[] = [];
+
+  for (const line of lines) {
+    const head = /^\s*Cible\s*:\s*(\S+)\s*\(([^)]+)\)/i.exec(line);
+    if (head) {
+      target = head[1]!;
+      destIp = head[2]!;
+      continue;
+    }
+
+    const total = /Nombre total de sauts\s*:\s*(\d+)/i.exec(line);
+    if (total) {
+      maxHops = Number.parseInt(total[1]!, 10);
+      continue;
+    }
+
+    // Une ligne de saut commence par son numéro, suivi d'au moins deux espaces.
+    const row = /^\s*(\d{1,2})\s{2,}(.*)$/.exec(line);
+    if (!row) continue;
+    const ttl = Number.parseInt(row[1]!, 10);
+
+    const cols = row[2]!
+      .split(/\s{2,}/)
+      .map((c) => c.trim())
+      .filter((c) => c.length > 0);
+    if (cols.length === 0) continue;
+
+    // La première colonne est l'IP quand le saut a répondu ; sinon elle contient
+    // « * * * » et l'IP est absente.
+    const rawIp = cols[0]!.replace(/[[\]()]/g, '');
+    const ip = isIp(rawIp) ? rawIp : null;
+    const rest = (ip ? cols.slice(1) : cols).join(' ');
+    const rtts = extractRtts(rest);
+
+    hops.push({
+      ttl,
+      ip,
+      host: null,
+      rttMs: rtts,
+      // Un saut qui n'a pas répondu est marqué « * * * » : il reste dans la
+      // liste, à sa place, pour que la numérotation corresponde à la source.
+      timeout: rtts.length === 0,
+      private: ip !== null ? isPrivateIp(ip) : false,
+    });
+  }
+
+  if (hops.length === 0) warnings.push('Aucun saut reconnu (format rapport attendu).');
+  return { target, destIp, maxHops, hops };
+}
+
 /* ------------------------------------------------------------------ public */
 
 function detectFormat(text: string): TraceFormat {
+  // Rapport tabulaire maison : en-tête explicite, ou colonnes SAUT/PING/PAYS.
+  if (/RAPPORT DE TRA[ÇC]AGE R[ÉE]SEAU/i.test(text)) return 'report';
+  if (/^\s*SAUT\b.*\bPING\b/im.test(text) && /PAYS/i.test(text)) return 'report';
   if (/(?:tracing route to|détermination de l'itinéraire vers)/i.test(text)) return 'tracert';
   if (/\.\|\-\-|loss%\s+snt/i.test(text)) return 'mtr';
   if (/resume:\s*pmtu|^\s*\d+\?:\s/m.test(text)) return 'tracepath';
@@ -482,7 +556,9 @@ export function parseTraceroute(input: string): ParsedTrace {
         ? parseMtr(lines, warnings)
         : format === 'tracepath'
           ? parseTracepath(lines, warnings)
-          : parseTracerouteLinux(lines, warnings);
+          : format === 'report'
+            ? parseReport(lines, warnings)
+            : parseTracerouteLinux(lines, warnings);
 
   // Aucun saut reconnu : le texte a peut-être été aplati par un copier-coller
   // mobile. On tente la reconstitution avant de renoncer.

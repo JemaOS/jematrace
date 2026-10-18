@@ -4,7 +4,7 @@
  */
 
 /** Format de sortie reconnu en entrée du mode « coller un traceroute ». */
-export type TraceFormat = 'traceroute' | 'tracert' | 'mtr' | 'tracepath';
+export type TraceFormat = 'traceroute' | 'tracert' | 'mtr' | 'tracepath' | 'report';
 
 /** Un saut brut, tel qu'extrait du texte collé. */
 export interface Hop {
