@@ -465,22 +465,29 @@ button.ghost {
 
 /* --------------------------------------------------------------- contr�les */
 
-.ctrl-left,
-.ctrl-right {
+/* Une seule rangée pour les deux groupes : ils se placent à gauche et à
+   droite, et passent à la ligne s'ils ne tiennent pas. Avant, chacun était
+   positionné en absolu, ce qui les faisait se recouvrir dès que la fenêtre
+   était étroite (fenêtre réduite, tablette, pliable ouvert). */
+.controls {
   position: absolute;
   top: 56px;
+  left: 316px;
+  right: 16px;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   z-index: 4;
 }
 
-.ctrl-left {
-  left: 316px;
-}
-
+.ctrl-left,
 .ctrl-right {
-  right: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .seg {
@@ -1123,7 +1130,7 @@ img.flag {
     flex-direction: column;
   }
 
-  .sidebar {
+.sidebar {
     position: relative;
     width: 100%;
     height: auto;
@@ -1133,6 +1140,20 @@ img.flag {
     border-right: none;
     border-bottom: 1px solid var(--border);
     z-index: 3;
+  }
+
+  /* Le volet défile : un dégradé en bas indique qu'il reste du contenu, au
+     lieu de couper net au milieu d'une ligne. `sticky` le garde collé au bas
+     de la zone visible quel que soit le défilement. */
+  .sidebar::after {
+    content: '';
+    display: block;
+    position: sticky;
+    bottom: -14px;
+    height: 22px;
+    margin: 0 -14px -14px;
+    background: linear-gradient(to bottom, rgba(13, 17, 23, 0), rgba(13, 17, 23, 0.96));
+    pointer-events: none;
   }
 
   /* En vue empilée, le volet se replie vers le haut : la flèche devient une
@@ -1179,30 +1200,34 @@ img.flag {
     z-index: 0;
   }
 
-/* Les deux groupes de contrôles se chevauchaient : ils sont ancrés au même
-     bas et, à 390 px, `.ctrl-right` (boutons + sélecteur) fait presque toute
-     la largeur. On les empile, chacun sur sa ligne, et on laisse la ligne
-     passer à la suivante si le sélecteur ne tient pas. */
-  .ctrl-left {
+/* Les deux groupes de contrôles se chevauchaient : ancrés séparément, la
+     hauteur de l'un (variable, le sélecteur peut passer à la ligne) empiétait
+     sur l'autre. Ils forment maintenant une pile ancrée en bas, d'un seul bloc :
+     plus aucun recouvrement possible, quelle que soit la largeur. */
+  .controls {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 8px;
+    position: absolute;
+    /* `top: auto` est indispensable : le `top` du grand écran resterait actif
+       avec `bottom`, et la pile s'étirerait sur toute la hauteur. */
     top: auto;
     left: 12px;
     right: 12px;
-    bottom: 100px;
-    flex-wrap: wrap;
+    /* Au-dessus de l'attribution Leaflet (14 px). */
+    bottom: 44px;
+    z-index: 5;
   }
 
+  .ctrl-left,
   .ctrl-right {
-    top: auto;
-    left: 12px;
-    right: 12px;
-    bottom: 58px;
-    flex-wrap: wrap;
     justify-content: flex-start;
   }
 
   /* Sans cette limite, le sélecteur (dont l'option la plus longue fait
-     « Jour/Nuit + Frontières ») forçait la ligne à passer à la suivante et
-     grandissait sous le groupe du dessus. */
+     « Jour/Nuit + Frontières ») débordait de la ligne. */
   .ctrl-right select {
     max-width: 152px;
     min-width: 0;

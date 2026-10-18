@@ -365,32 +365,14 @@ export default function App() {
     () => (clientHop ? [clientHop, ...(data?.hops ?? [])] : (data?.hops ?? [])),
     [clientHop, data],
   );
-  const [shown, setShown] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [active, setActive] = useState(-1);
-
-  // Nouveau résultat → on trace le chemin saut par saut, puis on laisse tout allumé.
-  useEffect(() => {
-    setShown(locatedCount);
-    setActive(locatedCount === 0 ? -1 : 0);
-    setPlaying(locatedCount > 1);
-  }, [locatedCount]);
-
-  // Animation : le saut actif avance, puis s'éteint (tout reste visible).
-  useEffect(() => {
-    if (!playing) return;
-    if (active >= locatedCount - 1) {
-      const id = setTimeout(() => {
-        setActive(-1);
-        setPlaying(false);
-      }, 450);
-      return () => clearTimeout(id);
-    }
-    const id = setTimeout(() => {
-      setActive((a) => Math.min(locatedCount - 1, (a < 0 ? -1 : a) + 1));
-    }, 110);
-    return () => clearTimeout(id);
-  }, [playing, active, locatedCount]);
+  /**
+   * Tracé affiché en entier dès que le résultat arrive, et sans saut « actif ».
+   * Il y avait ici une animation qui allumait les segments un par un (110 ms)
+   * puis faisait ressortir chaque ville : elle faisait varier la luminosité en
+   * continu. Le tracé et les villes sont désormais statiques.
+   */
+  const shown = locatedCount;
+  const active = -1;
 
   const look = useMemo(() => lookById(prefs.look), [prefs.look]);
 
@@ -598,44 +580,47 @@ export default function App() {
         {prefs.view === '2d' ? (
           <Map2D hops={mapHopsWithClient} limit={Math.min(shown, mapHops.length)} showCables={prefs.cables} look={look} />
         ) : (
-          <Globe hops={globeHops} look={look} showCities={prefs.cities} showCables={prefs.cables} active={active} />
+          <Globe hops={globeHops} look={look} showCities={prefs.cities} showCables={prefs.cables} />
         )}
         </Suspense>
       </div>
 
-      <div className="ctrl-left">
-        <div className="seg">
-          <button className={prefs.view === '3d' ? 'on' : ''} onClick={() => setPrefs({ ...prefs, view: '3d' })}>
-            3D
-          </button>
-          <button className={prefs.view === '2d' ? 'on' : ''} onClick={() => setPrefs({ ...prefs, view: '2d' })}>
-            2D
-          </button>
+      {/* Regroupés pour que la vue empilée les ancre d'un bloc, sans chevauchement. */}
+      <div className="controls">
+        <div className="ctrl-left">
+          <div className="seg">
+            <button className={prefs.view === '3d' ? 'on' : ''} onClick={() => setPrefs({ ...prefs, view: '3d' })}>
+              3D
+            </button>
+            <button className={prefs.view === '2d' ? 'on' : ''} onClick={() => setPrefs({ ...prefs, view: '2d' })}>
+              2D
+            </button>
+          </div>
+          <div className="seg">
+            <button className={prefs.route === 'topo' ? 'on' : ''} onClick={() => switchRoute('topo')}>
+              Topo
+            </button>
+            <button className={prefs.route === 'line' ? 'on' : ''} onClick={() => switchRoute('line')}>
+              Ligne
+            </button>
+          </div>
         </div>
-        <div className="seg">
-          <button className={prefs.route === 'topo' ? 'on' : ''} onClick={() => switchRoute('topo')}>
-            Topo
-          </button>
-          <button className={prefs.route === 'line' ? 'on' : ''} onClick={() => switchRoute('line')}>
-            Ligne
-          </button>
-        </div>
-      </div>
 
-      <div className="ctrl-right">
-        <button className={prefs.cities ? 'on' : ''} title="Afficher / masquer les villes" onClick={() => setPrefs({ ...prefs, cities: !prefs.cities })}>
-          {t('ctrl.cities')}
-        </button>
-        <button className={prefs.cables ? 'on' : ''} title="Afficher / masquer les câbles sous-marins" onClick={() => setPrefs({ ...prefs, cables: !prefs.cables })}>
-          {t('ctrl.cables')}
-        </button>
-        <select value={prefs.look} onChange={(e) => setPrefs({ ...prefs, look: e.target.value })} title="Apparence du globe">
-          {LOOKS.map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.label}
-            </option>
-          ))}
-        </select>
+        <div className="ctrl-right">
+          <button className={prefs.cities ? 'on' : ''} title="Afficher / masquer les villes" onClick={() => setPrefs({ ...prefs, cities: !prefs.cities })}>
+            {t('ctrl.cities')}
+          </button>
+          <button className={prefs.cables ? 'on' : ''} title="Afficher / masquer les câbles sous-marins" onClick={() => setPrefs({ ...prefs, cables: !prefs.cables })}>
+            {t('ctrl.cables')}
+          </button>
+          <select value={prefs.look} onChange={(e) => setPrefs({ ...prefs, look: e.target.value })} title="Apparence du globe">
+            {LOOKS.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="legend">

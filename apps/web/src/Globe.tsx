@@ -450,44 +450,16 @@ function arcPoints(
   return slerpArc(latLonToVec3(from[0], from[1], 1), latLonToVec3(to[0], to[1], 1));
 }
 
-/** Sommet-shader commun aux tracés fusionnés (couleur et indice par sommet). */
-const ARC_VERT = `
-  attribute vec3 aColor;
-  attribute float aArc;
-  varying vec3 vColor;
-  varying float vArc;
-  void main() {
-    vColor = aColor;
-    vArc = aArc;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-/**
- * L'animation « tracé progressif » est appliquée par ce fragment-shader plutôt
- * que par une opacité par maillage : tout le trajet tient ainsi en 2 draw calls
- * au lieu de 2 par segment (26 pour 13 sauts).
- */
-const ARC_FRAG = `
-  uniform float uActive;
-  uniform float uLit;
-  uniform float uDim;
-  varying vec3 vColor;
-  varying float vArc;
-  void main() {
-    float on = (uActive < 0.0 || vArc <= uActive) ? 1.0 : 0.0;
-    gl_FragColor = vec4(vColor, mix(uDim, uLit, on));
-  }
-`;
-
 /**
  * Fusionne des tubes en une géométrie unique en conservant l'index (donc sans
- * multiplier les sommets), avec la couleur et l'indice d'arc par sommet.
+ * multiplier les sommets), avec la couleur par sommet.
+ *
+ * L'attribut s'appelle `color` : c'est le nom que `meshBasicMaterial` lit avec
+ * `vertexColors` (l'ancien shader attendait `aColor`, d'où un tracé noir).
  */
 function mergeTubes(parts: Array<{ geo: THREE.BufferGeometry; color: THREE.Color; arc: number }>): THREE.BufferGeometry {
   const positions: number[] = [];
   const colors: number[] = [];
-  const arcIds: number[] = [];
   const indices: number[] = [];
   let offset = 0;
 
@@ -496,7 +468,6 @@ function mergeTubes(parts: Array<{ geo: THREE.BufferGeometry; color: THREE.Color
     for (let i = 0; i < pos.count; i++) {
       positions.push(pos.getX(i), pos.getY(i), pos.getZ(i));
       colors.push(part.color.r, part.color.g, part.color.b);
-      arcIds.push(part.arc);
     }
     const index = part.geo.getIndex();
     if (index) {
@@ -508,8 +479,7 @@ function mergeTubes(parts: Array<{ geo: THREE.BufferGeometry; color: THREE.Color
 
   const merged = new THREE.BufferGeometry();
   merged.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  merged.setAttribute('aColor', new THREE.Float32BufferAttribute(colors, 3));
-  merged.setAttribute('aArc', new THREE.Float32BufferAttribute(arcIds, 1));
+  merged.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   merged.setIndex(indices);
   return merged;
 }
@@ -528,8 +498,8 @@ function useArcGeometries(arcs: Array<{ from: [number, number]; to: [number, num
       // Finesse plafonnée : invisible à cette échelle, coûteuse en sommets.
       const tubular = Math.max(12, Math.min(320, pts.length * 2));
       const color = new THREE.Color(arc.color);
-      cores.push({ geo: new THREE.TubeGeometry(curve, tubular, 0.42, 12, false), color, arc: arc.index });
-      glows.push({ geo: new THREE.TubeGeometry(curve, tubular, 1.35, 12, false), color, arc: arc.index });
+      cores.push({ geo: new THREE.TubeGeometry(curve, tubular, 0.8, 12, false), color, arc: arc.index });
+      glows.push({ geo: new THREE.TubeGeometry(curve, tubular, 2.6, 12, false), color, arc: arc.index });
     }
 
     if (cores.length === 0) return null;
@@ -585,7 +555,7 @@ function dotTexture(): THREE.CanvasTexture {
  * lumineuse. Les disques sont des `Points` : toujours face caméra, donc de
  * vrais cercles à n'importe quel zoom, contrairement aux sphères facettées.
  */
-function Nodes({ markers, active, onHover }: { markers: Marker[]; active?: number; onHover?: (hop: InspectHop | null) => void }) {
+function Nodes({ markers, onHover }: { markers: Marker[]; onHover?: (hop: InspectHop | null) => void }) {
   const count = markers.length;
   const hits = useRef<THREE.InstancedMesh>(null);
   const tmp = useMemo(() => ({ m: new THREE.Matrix4(), q: new THREE.Quaternion(), p: new THREE.Vector3(), s: new THREE.Vector3() }), []);
@@ -606,7 +576,7 @@ function Nodes({ markers, active, onHover }: { markers: Marker[]; active?: numbe
 
   // Pastilles et auras : décalées vers l'extérieur pour ne pas clignoter
   // contre la surface du globe.
-  const { coreGeo, auraGeo, activeGeo } = useMemo(() => {
+  const { coreGeo, auraGeo } = useMemo(() => {
     const core = new Float32Array(count * 3);
     const aura = new Float32Array(count * 3);
     const v = new THREE.Vector3();
@@ -622,23 +592,15 @@ function Nodes({ markers, active, onHover }: { markers: Marker[]; active?: numbe
       return g;
     };
 
-    const activeArr = new Float32Array(3);
-    const activeMarker = active !== undefined && active >= 0 && active < count ? markers[active] : null;
-    if (activeMarker) {
-      v.set(activeMarker.position[0], activeMarker.position[1], activeMarker.position[2]).normalize().multiplyScalar(R + SURF_OFFSET + 2.4);
-      activeArr.set([v.x, v.y, v.z], 0);
-    }
-
-    return { coreGeo: make(core), auraGeo: make(aura), activeGeo: make(activeArr) };
-  }, [markers, count, active]);
+    return { coreGeo: make(core), auraGeo: make(aura) };
+  }, [markers, count]);
 
   useEffect(
     () => () => {
       coreGeo.dispose();
       auraGeo.dispose();
-      activeGeo.dispose();
     },
-    [coreGeo, auraGeo, activeGeo],
+    [coreGeo, auraGeo],
   );
 
   if (count === 0) return null;
@@ -684,13 +646,6 @@ function Nodes({ markers, active, onHover }: { markers: Marker[]; active?: numbe
       <points geometry={coreGeo} renderOrder={10}>
         <pointsMaterial map={dotTexture()} color="#ff9e2c" size={9} sizeAttenuation={false} transparent opacity={1} depthWrite={false} toneMapped={false} />
       </points>
-
-      {/* Saut en cours : pastille plus claire, pour suivre l'animation. */}
-      {active !== undefined && active >= 0 && active < count && (
-        <points geometry={activeGeo} renderOrder={11}>
-          <pointsMaterial map={dotTexture()} color="#ffd9a8" size={13} sizeAttenuation={false} transparent opacity={1} depthWrite={false} toneMapped={false} />
-        </points>
-      )}
     </>
   );
 }
@@ -875,11 +830,9 @@ interface GlobeProps {
   look: Look;
   showCities: boolean;
   showCables: boolean;
-  /** Index du saut actif (animation / curseur). -1 = tout allumé. */
-  active?: number;
 }
 
-function Scene({ hops, look, showCities, showCables, world, active, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null) => void }) {
+function Scene({ hops, look, showCities, showCables, world, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null) => void }) {
   const located = useMemo(() => hops.filter((h) => h.lat !== null && h.lon !== null), [hops]);
 
   const focus = useMemo(() => {
@@ -917,19 +870,6 @@ function Scene({ hops, look, showCities, showCables, world, active, onHover }: G
   }, [located]);
 
   const arcGeometries = useArcGeometries(arcs);
-  const arcUniforms = useMemo(
-    () => ({
-      glow: { uActive: { value: -1 }, uLit: { value: 0.14 }, uDim: { value: 0.03 } },
-      core: { uActive: { value: -1 }, uLit: { value: 1 }, uDim: { value: 0.28 } },
-    }),
-    [],
-  );
-
-  useEffect(() => {
-    const value = active === undefined ? -1 : active;
-    arcUniforms.glow.uActive.value = value;
-    arcUniforms.core.uActive.value = value;
-  }, [active, arcUniforms]);
 
   return (
     <>
@@ -947,28 +887,24 @@ function Scene({ hops, look, showCities, showCables, world, active, onHover }: G
         {showCities && <CityDots count={1251} />}
         {arcGeometries && (
           <>
+            {/* Halo du tracé : statique, couleur par sommet. */}
             <mesh geometry={arcGeometries.glow} renderOrder={2}>
-              <shaderMaterial
-                uniforms={arcUniforms.glow}
-                vertexShader={ARC_VERT}
-                fragmentShader={ARC_FRAG}
+              <meshBasicMaterial
+                vertexColors
                 transparent
+                opacity={0.14}
                 depthWrite={false}
                 blending={THREE.AdditiveBlending}
+                toneMapped={false}
               />
             </mesh>
+            {/* Trait net : couleur par sommet, aucune animation. */}
             <mesh geometry={arcGeometries.core} renderOrder={3}>
-              <shaderMaterial
-                uniforms={arcUniforms.core}
-                vertexShader={ARC_VERT}
-                fragmentShader={ARC_FRAG}
-                transparent
-                depthWrite={false}
-              />
+              <meshBasicMaterial vertexColors depthWrite={false} toneMapped={false} />
             </mesh>
           </>
         )}
-        <Nodes markers={markers} active={active} onHover={onHover} />
+        <Nodes markers={markers} onHover={onHover} />
         <Photon located={located} />
       </group>
     </>
