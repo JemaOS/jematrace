@@ -17,3 +17,4 @@ data/geo/ne_10m_places.geojson
 .vercel
 .vercel
 .env*
+public/
