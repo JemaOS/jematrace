@@ -6,10 +6,12 @@
   "outputDirectory": "apps/web/dist",
   "functions": {
     "api/[...path].ts": {
-      "memory": 1024,
       "maxDuration": 30,
       "includeFiles": "data/**"
     }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/.*", "dest": "/index.html" }
+  ]
 }
