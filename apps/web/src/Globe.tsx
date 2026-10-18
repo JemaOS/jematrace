@@ -172,6 +172,18 @@ function OutlineLayer({
   );
 }
 
+/**
+ * Échelle des éléments dessinés en pixels (points, halos).
+ *
+ * Le globe occupe beaucoup moins de place sur un téléphone : une aura de 13 px
+ * par ville couvre alors une grande partie du disque et, en additif, sature
+ * tout en blanc. On réduit donc les tailles avec la largeur réelle.
+ */
+function useUiScale(): number {
+  const width = useThree((s) => s.size.width);
+  return Math.min(1, Math.max(0.38, width / 900));
+}
+
 /** Villes : tailles par rang de population (9 → 3), comme l'original. */
 function CityDots({ count }: { count: number }) {
   const [cities, setCities] = useState<CityPoint[]>([]);
@@ -186,7 +198,9 @@ function CityDots({ count }: { count: number }) {
     };
   }, []);
 
-  // Taille par rang de population, quantifi�e par pas de 0,5 px (r�gle de l'original).
+  const k = useUiScale();
+
+  // Taille par rang de population, quantifiee par pas de 0,5 px.
   const buckets = useMemo(() => {
     const n = Math.min(count, cities.length);
     const SIZE_MAX = 3.6;
@@ -221,11 +235,11 @@ function CityDots({ count }: { count: number }) {
           {/* Aura douce : une ville lumineuse, pas un point dur. */}
           <pointsMaterial
             map={glowTexture()}
-            size={b.size * 4.2}
+            size={b.size * 3.4 * k}
             color="#ffb54a"
             sizeAttenuation={false}
             transparent
-            opacity={0.2}
+            opacity={0.13}
             depthWrite={false}
             blending={THREE.AdditiveBlending}
             toneMapped={false}
@@ -239,7 +253,7 @@ function CityDots({ count }: { count: number }) {
           </bufferGeometry>
           <pointsMaterial
             map={dotTexture()}
-            size={b.size}
+            size={b.size * k}
             color="#ffe2a3"
             // Taille en pixels, pas en unités 3D : au zoom, les villes proches
             // grossissaient jusqu'à devenir des pâtés blancs.
@@ -402,7 +416,7 @@ function CableParticles() {
         color="#cfcffd"
         sizeAttenuation
         transparent
-        opacity={0.9}
+        opacity={0.45}
         alphaTest={0.01}
         blending={THREE.AdditiveBlending}
         depthWrite={false}
@@ -556,6 +570,7 @@ function dotTexture(): THREE.CanvasTexture {
  * vrais cercles à n'importe quel zoom, contrairement aux sphères facettées.
  */
 function Nodes({ markers, onHover }: { markers: Marker[]; onHover?: (hop: InspectHop | null) => void }) {
+  const k = useUiScale();
   const count = markers.length;
   const hits = useRef<THREE.InstancedMesh>(null);
   const tmp = useMemo(() => ({ m: new THREE.Matrix4(), q: new THREE.Quaternion(), p: new THREE.Vector3(), s: new THREE.Vector3() }), []);
@@ -632,10 +647,10 @@ function Nodes({ markers, onHover }: { markers: Marker[]; onHover?: (hop: Inspec
         <pointsMaterial
           map={glowTexture()}
           color="#ff9e2c"
-          size={30}
+          size={30 * k}
           sizeAttenuation={false}
           transparent
-          opacity={0.5}
+          opacity={0.32}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
           toneMapped={false}
@@ -644,7 +659,7 @@ function Nodes({ markers, onHover }: { markers: Marker[]; onHover?: (hop: Inspec
 
       {/* Pastille : disque net, orange. */}
       <points geometry={coreGeo} renderOrder={10}>
-        <pointsMaterial map={dotTexture()} color="#ff9e2c" size={9} sizeAttenuation={false} transparent opacity={1} depthWrite={false} toneMapped={false} />
+        <pointsMaterial map={dotTexture()} color="#ff9e2c" size={9 * k} sizeAttenuation={false} transparent opacity={1} depthWrite={false} toneMapped={false} />
       </points>
     </>
   );
@@ -667,6 +682,24 @@ function bloomIntensity(look: Look): number {
   const mean = lum(look.ocean) * 0.4 + lum(look.land) * 0.45 + lum(look.background) * 0.15;
   const t = Math.min(1, Math.max(0, mean / 0.35));
   return 0.45 - 0.3 * t;
+}
+
+/**
+ * Bloom, coupé sous 700 px de large.
+ *
+ * Sur un téléphone, le canvas est petit : à cette résolution le flou du bloom
+ * couvre une grande partie du disque et noie le globe dans un voile blanc.
+ * Les halos additifs (villes, câbles, atmosphère) suffisent alors à donner
+ * l'effet lumineux, sans surcoût.
+ */
+function BloomLayer({ intensity }: { intensity: number }) {
+  const width = useThree((s) => s.size.width);
+  if (width < 700) return null;
+  return (
+    <EffectComposer multisampling={0}>
+      <Bloom intensity={intensity} luminanceThreshold={0.9} luminanceSmoothing={0.2} mipmapBlur levels={5} />
+    </EffectComposer>
+  );
 }
 
 /**
@@ -746,6 +779,7 @@ function Photon({ located }: { located: InspectHop[] }) {
 }
 
 function Stars({ color }: { color: string }) {
+  const k = useUiScale();
   const geometry = useMemo(() => {
     const N = 1800;
     const pos = new Float32Array(N * 3);
@@ -779,7 +813,7 @@ function Stars({ color }: { color: string }) {
         map={dotTexture()}
         // Taille en pixels : avec l'atténuation, des étoiles à 3000 unités
         // tombaient sous le pixel et restaient invisibles.
-        size={2.2}
+        size={Math.max(1.4, 2.2 * k)}
         sizeAttenuation={false}
         color={color}
         vertexColors
@@ -833,6 +867,7 @@ interface GlobeProps {
 }
 
 function Scene({ hops, look, showCities, showCables, world, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null) => void }) {
+  const wide = useThree((s) => s.size.width) >= 700;
   const located = useMemo(() => hops.filter((h) => h.lat !== null && h.lon !== null), [hops]);
 
   const focus = useMemo(() => {
@@ -881,7 +916,9 @@ function Scene({ hops, look, showCities, showCables, world, onHover }: GlobeProp
         {showCables && (
           <>
             <CableLayer />
-            <CableParticles />
+            {/* Particules circulant sur les câbles : mouvement continu, donc
+                coupé sur mobile pour alléger le GPU. */}
+            {wide && <CableParticles />}
           </>
         )}
         {showCities && <CityDots count={1251} />}
@@ -977,12 +1014,7 @@ export function Globe(props: GlobeProps) {
         <color attach="background" args={[props.look.background]} />
         <PerfReporter onSample={onSample} />
         <Scene {...props} world={world} onHover={setHover} />
-        {/* MSAA 4× divisait la cadence par deux sur GPU intégré : 0. */}
-        {bloomOn && (
-          <EffectComposer multisampling={0}>
-            <Bloom intensity={intensity} luminanceThreshold={0.9} luminanceSmoothing={0.2} mipmapBlur levels={5} />
-          </EffectComposer>
-        )}
+        {bloomOn && <BloomLayer intensity={intensity} />}
       </Canvas>
 
       {hover && (

@@ -62,6 +62,13 @@ h3,
   background: transparent;
 }
 
+/* Pas de flèches aux extrémités : le dessin veut une barre nue. */
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 html,
 body,
 #root {
@@ -1142,18 +1149,19 @@ img.flag {
     z-index: 3;
   }
 
-  /* Le volet défile : un dégradé en bas indique qu'il reste du contenu, au
-     lieu de couper net au milieu d'une ligne. `sticky` le garde collé au bas
-     de la zone visible quel que soit le défilement. */
-  .sidebar::after {
-    content: '';
-    display: block;
+  /* Le contenu dépasse largement la hauteur du volet (206 px sur un écran de
+     844 px) : le bouton d'action se retrouvait coupé net par le bas, ce qui
+     dessinait une bande claire au-dessus du globe. On l'épingle : toujours
+     entier, toujours accessible, et le reste défile derrière lui. */
+  .cta-wrap {
     position: sticky;
-    bottom: -14px;
-    height: 22px;
-    margin: 0 -14px -14px;
-    background: linear-gradient(to bottom, rgba(13, 17, 23, 0), rgba(13, 17, 23, 0.96));
-    pointer-events: none;
+    bottom: 0;
+    z-index: 2;
+    margin: 12px -14px 0;
+    padding: 10px 14px 12px;
+    background: rgba(13, 17, 23, 0.97);
+    border-top: 1px solid var(--border);
+    backdrop-filter: blur(8px);
   }
 
   /* En vue empilée, le volet se replie vers le haut : la flèche devient une
