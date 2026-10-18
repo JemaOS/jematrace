@@ -952,42 +952,42 @@ export function Globe(props: GlobeProps) {
   const [world, setWorld] = useState<WorldData | null>(null);
   const [hover, setHover] = useState<InspectHop | null>(null);
   /**
-   * Résolution adaptative : on démarre à 1 (fluide même sur un GPU faible) et
-   * on monte par paliers tant que la cadence le permet. C'est le levier n°1 :
-   * le coût est proportionnel au nombre de pixels. Le DPR est passé en prop
-   * (et non via `setDpr`) pour garantir le redimensionnement du tampon.
-   */
-  /**
-   * Résolution adaptative. Plancher **1** : on ne descend jamais sous la
-   * résolution CSS, sinon le globe paraît flou à côté de l'interface (qui est
-   * rendue, elle, au DPR de l'écran). Le budget se gagne d'abord en coupant le
-   * bloom, ensuite seulement on baisse la cadence.
+   * Résolution calibrée **une fois**, puis figée.
+   *
+   * Elle était réévaluée en continu : chaque zoom changeait la cadence, donc le
+   * DPR, donc la netteté de l'image — d'où une impression d'animation des
+   * lumières par paliers. On mesure pendant les premières secondes, on choisit,
+   * et on ne touche plus à rien.
+   *
+   * Plancher à 1 : on ne descend jamais sous la résolution CSS, sinon le globe
+   * paraît flou à côté de l'interface (rendue, elle, au DPR de l'écran).
    */
   const maxDpr = Math.min(typeof window === 'undefined' ? 1 : window.devicePixelRatio || 1, 2);
-  const dprRef = useRef(1);
   const [dpr, setDpr] = useState(1);
   const [bloomOn, setBloomOn] = useState(true);
+  const calibratedRef = useRef(false);
+  const samplesRef = useRef<number[]>([]);
 
   const onSample = useCallback(
     (meanMs: number) => {
-      // 1. Le post-traitement est le premier sacrifice : il ne coûte que
-      //    lorsque le GPU suit. À 1× déjà trop lent, on le coupe.
-      if (bloomOn && meanMs > 30 && dprRef.current <= 1) {
+      if (calibratedRef.current) return;
+      // Trois mesures consécutives, puis décision définitive.
+      samplesRef.current.push(meanMs);
+      if (samplesRef.current.length < 3) return;
+      calibratedRef.current = true;
+
+      const median = [...samplesRef.current].sort((a, b) => a - b)[1]!;
+      if (median > 30) {
+        // GPU trop juste pour le post-traitement : on garde la netteté.
         setBloomOn(false);
-        return;
-      }
-      // 2. Ensuite la résolution, sans jamais passer sous 1 : on monte tant
-      //    qu'on reste au-dessus de ~40 fps, sinon on redescend (hystérésis de
-      //    6 ms pour éviter l'oscillation).
-      if (meanMs > 30 && dprRef.current > 1) {
-        dprRef.current = Math.max(1, dprRef.current - 0.25);
-        setDpr(dprRef.current);
-      } else if (meanMs < 24 && dprRef.current < maxDpr) {
-        dprRef.current = Math.min(maxDpr, dprRef.current + 0.25);
-        setDpr(dprRef.current);
+        setDpr(1);
+      } else if (median < 22) {
+        setDpr(maxDpr);
+      } else {
+        setDpr(Math.min(maxDpr, 1.25));
       }
     },
-    [bloomOn, maxDpr],
+    [maxDpr],
   );
 
   useEffect(() => {
