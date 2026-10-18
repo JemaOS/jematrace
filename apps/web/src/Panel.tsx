@@ -31,6 +31,9 @@ interface Props {
 export function Panel({ result, hops, geek, onReset, onShare, onCollapse, recent, onPickRecent, client }: Props) {
   const { t } = useT();
   const [open, setOpen] = useState<number | null>(null);
+  // Une liaison courte ou terrestre n'emprunte aucun câble : Topo et Ligne
+  // produisent alors exactement le même tracé.
+  const hasCableRoute = result.groups.some((g) => Boolean(g.polyline));
   const colorByTtl = new Map(hops.map((h) => [h.ttl, h.color]));
 
   return (
@@ -115,6 +118,10 @@ export function Panel({ result, hops, geek, onReset, onShare, onCollapse, recent
         <div>
           <b>{t('panel.distance')}</b> {groupNumber(result.distanceKm)} km ({groupNumber(result.speedKmS)} km/s)
         </div>
+        {/* Sur une liaison courte ou entièrement terrestre, aucun câble
+            sous-marin n'est emprunté : les deux modes donnent le même tracé.
+            Le dire évite de croire que le bouton Topo/Ligne ne fait rien. */}
+        {!hasCableRoute && <div className="metrics-note">{t('panel.noCable')}</div>}
       </div>
 
       <div className="cta-wrap">

@@ -447,6 +447,18 @@ export default function App() {
   );
 
   /**
+   * Retour à l'accueil : le volet et le logo y mènent tous deux. La zone de
+   * collage doit être vide, pas pré-remplie avec la démonstration.
+   */
+  const goHome = useCallback(() => {
+    setData(null);
+    setError(null);
+    setLastText('');
+    setIsDemo(false);
+    setPanelOpen(true);
+  }, []);
+
+  /**
    * Ouverture : on affiche tout de suite la trace de démonstration, sauf si un
    * lien ?share=xxxx apporte un trace précis (et retombe sur la démo s'il est
    * introuvable, pour ne jamais laisser l'écran vide).
@@ -529,9 +541,9 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="brand inline-brand">
+        <button className="brand inline-brand" onClick={goHome} title="Retour à l'accueil">
           Route<span>Scope</span>
-        </div>
+        </button>
           <button
             className="lang-pill"
             title="Choisir la langue / Choose language"
@@ -552,14 +564,7 @@ export default function App() {
           hops={data.hops}
           geek={prefs.geek}
           client={isDemo ? null : data.client}
-          onReset={() => {
-            // Nouvelle trace : la zone de collage doit être vide, pas
-            // pré-remplie avec la démonstration ou la trace précédente.
-            setData(null);
-            setError(null);
-            setLastText('');
-            setIsDemo(false);
-          }}
+          onReset={goHome}
           onShare={share}
           onCollapse={() => setPanelOpen(false)}
           recent={recent}

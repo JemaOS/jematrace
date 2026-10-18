@@ -26,6 +26,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 
 import { anchorAt, enrich, resolveAnchor, resolveClient } from './enrich.js';
 import { cablePath, cableCount } from './cables.js';
+import { publicIpFrom } from './data.js';
 import { randomBytes } from 'node:crypto';
 
 const MAX_INPUT_BYTES = 64 * 1024;
@@ -89,12 +90,17 @@ app.post<{ Body: InspectBody }>('/api/inspect', async (request, reply): Promise<
 
   const parsed = parseTraceroute(text);
   const body = request.body;
-  const anchor = body?.clientIp
-    ? await resolveAnchor(body.clientIp)
+  // L'IP du visiteur est déduite des en-têtes du proxy quand le client ne la
+  // fournit pas : sur Vercel, `x-forwarded-for` est toujours présent, alors que
+  // l'appel navigateur à 1.1.1.1 est bloqué par certains réseaux ou extensions.
+  const requestIp = publicIpFrom(request.headers['x-forwarded-for'], request.ip);
+  const clientIp = body?.clientIp ?? requestIp;
+  const anchor = clientIp
+    ? await resolveAnchor(clientIp)
     : body?.anchor
       ? anchorAt(body.anchor.lat, body.anchor.lon, body.anchor.city ?? null)
       : null;
-  const client = body?.clientIp ? await resolveClient(body.clientIp) : null;
+  const client = clientIp ? await resolveClient(clientIp) : null;
   const hops = await enrich(parsed.hops, anchor ?? undefined);
   const mode: RouteMode = request.body?.mode === 'topo' ? 'topo' : 'line';
 

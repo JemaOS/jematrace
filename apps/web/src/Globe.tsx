@@ -576,7 +576,7 @@ function dotTexture(): THREE.CanvasTexture {
  * lumineuse. Les disques sont des `Points` : toujours face caméra, donc de
  * vrais cercles à n'importe quel zoom, contrairement aux sphères facettées.
  */
-function Nodes({ markers, onHover }: { markers: Marker[]; onHover?: (hop: InspectHop | null) => void }) {
+function Nodes({ markers, onHover }: { markers: Marker[]; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
   const k = useUiScale();
   const count = markers.length;
   const hits = useRef<THREE.InstancedMesh>(null);
@@ -635,13 +635,17 @@ function Nodes({ markers, onHover }: { markers: Marker[]; onHover?: (hop: Inspec
         onPointerMove={(e) => {
           e.stopPropagation();
           const id = e.instanceId;
-          if (id !== undefined) onHover?.(markers[id]!.hop);
+          if (id !== undefined) {
+            onHover?.(markers[id]!.hop, { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY });
+          }
         }}
         onPointerOut={() => onHover?.(null)}
         onClick={(e) => {
           e.stopPropagation();
           const id = e.instanceId;
-          if (id !== undefined) onHover?.(markers[id]!.hop);
+          if (id !== undefined) {
+            onHover?.(markers[id]!.hop, { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY });
+          }
         }}
       >
         {/* Zone de clic élargie (invisible) pour attraper le nœud facilement. */}
@@ -884,7 +888,7 @@ interface GlobeProps {
   showCables: boolean;
 }
 
-function Scene({ hops, look, showCities, showCables, world, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null) => void }) {
+function Scene({ hops, look, showCities, showCables, world, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
   const wide = useThree((s) => s.size.width) >= 700;
   const located = useMemo(() => hops.filter((h) => h.lat !== null && h.lon !== null), [hops]);
 
@@ -968,7 +972,7 @@ function Scene({ hops, look, showCities, showCables, world, onHover }: GlobeProp
 
 export function Globe(props: GlobeProps) {
   const [world, setWorld] = useState<WorldData | null>(null);
-  const [hover, setHover] = useState<InspectHop | null>(null);
+  const [hover, setHover] = useState<{ hop: InspectHop; x: number; y: number } | null>(null);
   /**
    * Résolution calibrée **une fois**, puis figée.
    *
@@ -1020,6 +1024,11 @@ export function Globe(props: GlobeProps) {
 
   const intensity = useMemo(() => bloomIntensity(props.look), [props.look]);
 
+  // L'infobulle suit le nœud touché, en restant dans l'écran : à position fixe
+  // (haut-droite), elle recouvrait les contrôles sur tablette et pliable.
+  const tipX = hover ? Math.min(Math.max(12, hover.x - 90), Math.max(12, window.innerWidth - 220)) : 0;
+  const tipY = hover ? Math.min(Math.max(12, hover.y - 54), Math.max(12, window.innerHeight - 52)) : 0;
+
   return (
     <>
       <Canvas
@@ -1028,20 +1037,30 @@ export function Globe(props: GlobeProps) {
         camera={{ position: [0, 120, 820], fov: 30, near: 1, far: 10000 }}
         dpr={dpr}
         gl={{ antialias: false, alpha: false, stencil: false, powerPreference: 'high-performance' }}
+        // Un tap dans le vide referme l'infobulle (indispensable au
+        // tactile : `pointerout` n'y est pas fiable).
+        onPointerMissed={() => setHover(null)}
       >
         <color attach="background" args={[props.look.background]} />
         <PerfReporter onSample={onSample} />
-        <Scene {...props} world={world} onHover={setHover} />
+        <Scene
+          {...props}
+          world={world}
+          onHover={(hop, at) => setHover(hop && at ? { hop, x: at.x, y: at.y } : null)}
+        />
         {bloomOn && <BloomLayer intensity={intensity} />}
       </Canvas>
 
       {hover && (
-        <div className="globe-tip">
-          <span className="num">#{hover.ttl}</span>
-          <img src={`/flags/${(hover.country ?? 'xx').toLowerCase()}.svg`} alt="" />
-          <strong>{hover.city ?? '—'}</strong>
-          <span className="cc">({hover.country ?? '—'})</span>
-          <span className="ms">{hover.rttMs} ms</span>
+        <div
+          className="globe-tip"
+          style={{ left: tipX, top: tipY }}
+        >
+            <span className="num">#{hover.hop.ttl}</span>
+            <img src={`/flags/${(hover.hop.country ?? 'xx').toLowerCase()}.svg`} alt="" />
+            <strong>{hover.hop.city ?? '—'}</strong>
+            <span className="cc">({hover.hop.country ?? '—'})</span>
+            <span className="ms">{hover.hop.rttMs} ms</span>
         </div>
       )}
     </>

@@ -154,6 +154,13 @@ body {
   color: var(--muted);
 }
 
+/* La commande peut être longue : elle doit se replier, pas élargir la page. */
+.paste .hint code {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 .paste .hint em {
   color: #c9d1d9;
   font-style: normal;
@@ -162,17 +169,40 @@ body {
 .os-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 18px;
   font-size: 13px;
   color: var(--muted);
 }
 
+/* Les quatre systèmes doivent tenir sur la largeur : à défaut, ils passent à la
+   ligne au lieu de déborder (« JemaOS » était coupé). */
+.os-row .seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.os-row .seg button {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 20px;
   align-items: center;
+}
+
+/* Un libellé peut être long (« Depuis le presse-papiers ») : il ne doit jamais
+   être coupé en plein mot, et les boutons passent à la ligne si besoin. */
+.actions button {
+  white-space: nowrap;
 }
 
 button.primary {
@@ -216,6 +246,18 @@ button.ghost {
   left: 18px;
   font-weight: 800;
   z-index: 3;
+  /* C'est un bouton (retour à l'accueil) : apparence de texte. */
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+  font-family: var(--font-head);
+  cursor: pointer;
+}
+
+.brand:hover {
+  opacity: 0.85;
 }
 
 .sidebar {
@@ -331,6 +373,13 @@ button.ghost {
   border-top: 1px solid var(--border);
   font-size: 14px;
   line-height: 1.6;
+}
+
+.metrics-note {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
 }
 
 .metrics b {
@@ -909,6 +958,51 @@ button.primary {
   #topo-toast {
     display: none;
   }
+
+  /* Écran de collage : les marges de 24 px et le titre de 30 px mangeaient la
+     largeur utile, et les trois boutons se tassaient sur une seule ligne. */
+  .paste {
+    padding: 62px 16px 32px;
+  }
+
+  .paste h1 {
+    font-size: 24px;
+    line-height: 1.25;
+  }
+
+  .paste textarea {
+    height: 210px;
+    font-size: 12px;
+  }
+
+  .os-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .os-row .seg button {
+    flex: 1 1 0;
+    padding: 7px 4px;
+    font-size: 12px;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* Le bouton principal occupe toute la largeur, les deux autres se partagent
+     la ligne suivante. */
+  .actions > button:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .actions button {
+    padding: 11px 8px;
+    font-size: 13px;
+  }
 }
 
 /* ------------------------------------------------------ panneau : actions */
@@ -1313,10 +1407,12 @@ img.flag {
 
 /* Infobulle des noeuds du globe. */
 .globe-tip {
-  position: absolute;
-  top: 104px;
-  right: 16px;
-  z-index: 6;
+  /* Positionnée en ligne (près du nœud touché) et bornée à l'écran. */
+  position: fixed;
+  top: 0;
+  left: 0;
+  max-width: 208px;
+  z-index: 8;
   display: flex;
   align-items: center;
   gap: 8px;

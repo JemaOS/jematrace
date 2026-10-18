@@ -50,3 +50,35 @@ export function findDataFile(rel: string, fromModuleUrl: string): string | null 
   }
   return null;
 }
+
+/** Adresses qui ne désignent pas un visiteur réel. */
+function isLocalIp(ip: string): boolean {
+  return (
+    ip === '::1' ||
+    ip === '127.0.0.1' ||
+    ip.startsWith('10.') ||
+    ip.startsWith('192.168.') ||
+    ip.startsWith('169.254.') ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(ip) ||
+    ip.startsWith('fc') ||
+    ip.startsWith('fd')
+  );
+}
+
+/**
+ * IP publique du visiteur, lue dans les en-têtes du proxy.
+ *
+ * `x-forwarded-for` est une liste (`client, proxy1, proxy2`) : la première
+ * entrée est le client. On ignore les adresses locales, sinon en développement
+ * la « position du visiteur » serait 127.0.0.1.
+ */
+export function publicIpFrom(header: string | string[] | undefined, fallback?: string): string | null {
+  const raw = Array.isArray(header) ? header[0] : header;
+  const candidate = raw?.split(',')[0]?.trim() || fallback?.trim() || '';
+  if (!candidate) return null;
+
+  // IPv6 mappée en IPv4 (::ffff:203.0.113.4).
+  const ip = candidate.replace(/^::ffff:/, '');
+  if (!ip || isLocalIp(ip)) return null;
+  return ip;
+}
