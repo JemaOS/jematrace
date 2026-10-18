@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import type { InspectHop } from './api';
-import { buildEarthTexture } from './earthTexture';
+import { buildEarthTexture, earthTextureWidth } from './earthTexture';
 import type { Look } from './looks';
 import { loadCables, loadCities, loadWorld, type CableWorld, type CityPoint, type WorldData } from './world';
 
@@ -89,7 +89,14 @@ const ATMO_FRAG = `
 `;
 
 function Earth({ world, look }: { world: WorldData | null; look: Look }) {
-  const texture = useMemo(() => (world ? buildEarthTexture(world, look) : null), [world, look]);
+  // `maxTextureSize` évite de demander au GPU plus qu'il ne sait faire : un
+  // dépassement (ou une allocation partielle) produisait un carré noir au
+  // milieu du globe sur certains mobiles.
+  const maxTexture = useThree((s) => s.gl.capabilities.maxTextureSize);
+  const texture = useMemo(
+    () => (world ? buildEarthTexture(world, look, Math.min(earthTextureWidth(), maxTexture)) : null),
+    [world, look, maxTexture],
+  );
   useEffect(() => () => texture?.dispose(), [texture]);
 
   const rimUniforms = useMemo(

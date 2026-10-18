@@ -4,18 +4,27 @@ import type { Look } from './looks';
 import type { WorldData } from './world';
 
 /**
+ * Largeur de texture adaptée au matériel.
+ *
+ * 4096 × 2048 (32 Mo) donne un globe net sur ordinateur, mais sur Android
+ * l'upload d'une texture de cette taille échoue partiellement : on voyait un
+ * carré noir au milieu du globe, et la pression mémoire pouvait faire perdre le
+ * contexte WebGL. Sous 700 px de large, 2048 × 1024 (8 Mo) est déjà ~5 texels
+ * par pixel affiché : aucune perte visible.
+ */
+export function earthTextureWidth(): number {
+  if (typeof window === 'undefined') return 2048;
+  return window.innerWidth < 700 ? 2048 : 4096;
+}
+
+/**
  * Texture équirectangulaire du globe : uniquement le remplissage (océan et
  * terres). Les côtes et les frontières ne sont pas peintes ici : elles sont
  * tracées en géométrie 3D par `OutlineLayer`, pour rester nettes au zoom.
- *
- * 4096 × 2048 : au zoom maximal, la texture est agrandie ~1,5× ; en 2048 elle
- * devenait visiblement floue.
  */
-export function buildEarthTexture(world: WorldData, look: Look): THREE.CanvasTexture {
-  // 4096 × 2048 : au zoom maximal du globe 3D, la texture est agrandie ~1,5×,
-  // donc 2048 devenait flou. 32 Mo de VRAM sont acceptables.
-  const W = 4096;
-  const H = 2048;
+export function buildEarthTexture(world: WorldData, look: Look, width = earthTextureWidth()): THREE.CanvasTexture {
+  const W = width;
+  const H = width / 2;
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
