@@ -43,8 +43,11 @@ createRoot(document.getElementById('root')!).render(
 );
 
 // PWA : enregistré seulement en production pour ne pas gêner le développement (HMR).
+// updateViaCache: 'none' garantit que le navigateur va chercher le nouveau
+// service worker à chaque visite (sinon une ancienne version pouvait rester
+// active et servir des fichiers périmés).
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/sw.js');
+    void navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
   });
 }

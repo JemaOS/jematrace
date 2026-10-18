@@ -1,9 +1,12 @@
 /**
  * Service worker minimal : garde la coquille de l'application et les données du
- * monde en cache pour un démarrage instantané, et laisse passer les appels à
- * l'API (ils dépendent du réseau).
+ * monde en cache pour un démarrage instantané, et laisse toujours passer les
+ * appels à l'API (ils dépendent du réseau et de l'IP du visiteur).
+ *
+ * Stratégie : réseau d'abord, cache en secours hors ligne. Un changement de
+ * réseau (5G ↔ Wi-Fi) ne doit jamais servir une réponse périmée.
  */
-const CACHE = 'routescope-v1';
+const CACHE = 'routescope-v3';
 const SHELL = ['/', '/index.html', '/icon.svg', '/manifest.webmanifest', '/world/world-110m.json'];
 
 self.addEventListener('install', (event) => {
@@ -21,15 +24,17 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  // L'API n'est jamais mise en cache : la position du visiteur change avec le
+  // réseau, et une réponse périmée donnerait une ville fausse.
   if (event.request.method !== 'GET' || url.pathname.startsWith('/api/')) return;
 
-  // Réseau d'abord pour les données du monde (elles changent rarement),
-  // cache en secours hors ligne.
   event.respondWith(
     fetch(event.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(event.request, copy)).catch(() => {});
+        if (res.ok && res.type === 'basic') {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(event.request, copy)).catch(() => {});
+        }
         return res;
       })
       .catch(() => caches.match(event.request).then((hit) => hit ?? Response.error())),

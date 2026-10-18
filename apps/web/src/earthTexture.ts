@@ -4,31 +4,30 @@ import type { Look } from './looks';
 import type { WorldData } from './world';
 
 /**
- * Largeur de texture adaptée au matériel.
+ * Largeur de texture adaptée à l'écran.
  *
- * 4096 × 2048 (32 Mo) donne un globe net sur ordinateur, mais sur Android
- * l'upload d'une texture de cette taille échoue partiellement : on voyait un
- * carré noir au milieu du globe, et la pression mémoire pouvait faire perdre le
- * contexte WebGL. Sous 700 px de large, 2048 × 1024 (8 Mo) est déjà ~5 texels
- * par pixel affiché : aucune perte visible.
+ * Le globe affiché fait au plus quelques centaines de pixels : inutile de
+ * générer 4096 × 2048 (32 Mo). Sur mobile, 1024 × 512 (2 Mo) suffit et évite
+ * les échecs d'allocation mémoire qui laissaient un globe blanc.
  */
 export function earthTextureWidth(): number {
-  if (typeof window === 'undefined') return 2048;
-  return window.innerWidth < 700 ? 2048 : 4096;
+  if (typeof window === 'undefined') return 1024;
+  return window.innerWidth < 900 ? 1024 : 2048;
 }
 
 /**
- * Texture équirectangulaire du globe : uniquement le remplissage (océan et
+ * Peint la texture équirectangulaire : uniquement le remplissage (océan et
  * terres). Les côtes et les frontières ne sont pas peintes ici : elles sont
  * tracées en géométrie 3D par `OutlineLayer`, pour rester nettes au zoom.
  */
-export function buildEarthTexture(world: WorldData, look: Look, width = earthTextureWidth()): THREE.CanvasTexture {
+export function paintEarth(world: WorldData, look: Look, width: number): HTMLCanvasElement {
   const W = width;
-  const H = width / 2;
+  const H = Math.round(width / 2);
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
 
   ctx.fillStyle = look.ocean;
   ctx.fillRect(0, 0, W, H);
@@ -46,9 +45,6 @@ export function buildEarthTexture(world: WorldData, look: Look, width = earthTex
     ctx.closePath();
   };
 
-  // Remplissage seul : les traits (côtes, frontières) sont tracés en 3D par
-  // `OutlineLayer`, sinon ils sont peints dans la texture et deviennent flous
-  // dès qu'on zoome sur le globe.
   ctx.fillStyle = look.land;
   for (const ring of world.land) {
     if (ring.length < 3) continue;
@@ -56,9 +52,30 @@ export function buildEarthTexture(world: WorldData, look: Look, width = earthTex
     ctx.fill();
   }
 
-  const texture = new THREE.CanvasTexture(canvas);
+  return canvas;
+}
+
+/**
+ * Construit la texture du globe.
+ *
+ * On reste sur `CanvasTexture` : le passage par `ImageBitmap` produisait une
+ * texture blanche sur certains navigateurs mobiles (le bitmap n'était pas
+ * encore décodé au premier upload). Le canvas reste référencé par la texture,
+ * donc il n'est pas collecté.
+ *
+ * Les mipmaps sont désactivées : inutiles sur une sphère, et elles coûtent
+ * ~30 % de mémoire et de temps d'upload.
+ */
+export function buildEarthTexture(
+  world: WorldData,
+  look: Look,
+  width = earthTextureWidth(),
+): THREE.CanvasTexture {
+  const texture = new THREE.CanvasTexture(paintEarth(world, look, width));
   texture.colorSpace = THREE.SRGBColorSpace;
-  // 8× coûte cher en remplissage sur un GPU intégré ; 4× suffit.
+  texture.generateMipmaps = false;
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
   texture.anisotropy = 4;
   return texture;
 }

@@ -441,10 +441,16 @@ export default function App() {
   );
 
   /**
-   * Retour à l'accueil : le volet et le logo y mènent tous deux. La zone de
-   * collage doit être vide, pas pré-remplie avec la démonstration.
+   * Retour à l'accueil : la page d'accueil, c'est la démonstration. Le logo y
+   * ramène ; « Lancer sa traceroute » ouvre, lui, la zone de collage vide.
    */
   const goHome = useCallback(() => {
+    setPanelOpen(true);
+    void run(DEMO_TRACE, { demo: true });
+  }, [run]);
+
+  /** Zone de collage vierge, pour saisir sa propre trace. */
+  const newTrace = useCallback(() => {
     setData(null);
     setError(null);
     setLastText('');
@@ -475,6 +481,42 @@ export default function App() {
         void run(DEMO_TRACE, { demo: true });
       });
   }, [run]);
+
+  /**
+   * Changement de réseau (5G → Wi-Fi) ou retour depuis l'arrière-plan : l'IP
+   * publique change, donc la position du visiteur (#0) et la géolocalisation
+   * des premiers sauts. On relance la trace affichée pour ne pas garder les
+   * données de l'ancien réseau.
+   */
+  useEffect(() => {
+    let lastRefresh = 0;
+    const refresh = () => {
+      const now = Date.now();
+      // Deux événements arrivent souvent ensemble (online + pageshow).
+      if (now - lastRefresh < 3000) return;
+      lastRefresh = now;
+      if (lastText) void run(lastText, { demo: isDemo });
+    };
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      // On ne relance que si l'IP publique a réellement changé (passage
+      // 5G ↔ Wi-Fi, VPN), pour ne pas recharger pour rien.
+      const known = data?.client?.ip;
+      if (!lastText || !known) return;
+      void detectClientIp().then((ip) => {
+        if (ip && ip !== known) refresh();
+      });
+    };
+
+    window.addEventListener('online', refresh);
+    window.addEventListener('pageshow', refresh);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('online', refresh);
+      window.removeEventListener('pageshow', refresh);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [data, isDemo, lastText, run]);
 
   // Recents globaux du serveur, fusionnes avec les locaux.
   useEffect(() => {
@@ -508,9 +550,9 @@ export default function App() {
     }
     return (
       <div className="app">
-        <div className="brand">
+        <button className="brand" onClick={goHome} title="Retour à l'accueil">
           Route<span>Scope</span>
-        </div>
+        </button>
         <PasteView onSubmit={run} busy={busy} error={error} initialText={lastText} />
       </div>
     );
@@ -562,7 +604,7 @@ export default function App() {
           hops={data.hops}
           geek={prefs.geek}
           client={data.client}
-          onReset={goHome}
+          onReset={newTrace}
           onShare={share}
           onCollapse={() => setPanelOpen(false)}
           recent={recent}

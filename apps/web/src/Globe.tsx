@@ -89,9 +89,7 @@ const ATMO_FRAG = `
 `;
 
 function Earth({ world, look }: { world: WorldData | null; look: Look }) {
-  // `maxTextureSize` évite de demander au GPU plus qu'il ne sait faire : un
-  // dépassement (ou une allocation partielle) produisait un carré noir au
-  // milieu du globe sur certains mobiles.
+  // `maxTextureSize` évite de demander au GPU plus qu'il ne sait faire.
   const maxTexture = useThree((s) => s.gl.capabilities.maxTextureSize);
   const texture = useMemo(
     () => (world ? buildEarthTexture(world, look, Math.min(earthTextureWidth(), maxTexture)) : null),
@@ -1000,6 +998,23 @@ export function Globe(props: GlobeProps) {
   const [world, setWorld] = useState<WorldData | null>(null);
   const [hover, setHover] = useState<{ hop: InspectHop; x: number; y: number } | null>(null);
   /**
+   * Jeton de reconstruction. Un contexte WebGL perdu (mémoire insuffisante,
+   * onglet laissé en arrière-plan) laissait un globe figé ou entièrement blanc :
+   * on reconstruit alors toute la scène, sans attendre un rechargement.
+   */
+  const [glKey, setGlKey] = useState(0);
+
+  useEffect(() => {
+    const onRestored = () => setGlKey((k) => k + 1);
+    const canvas = document.querySelector('.canvas-wrap canvas');
+    canvas?.addEventListener('webglcontextrestored', onRestored);
+    window.addEventListener('webglcontextrestored', onRestored);
+    return () => {
+      canvas?.removeEventListener('webglcontextrestored', onRestored);
+      window.removeEventListener('webglcontextrestored', onRestored);
+    };
+  }, [glKey]);
+  /**
    * Résolution calibrée **une fois**, puis figée.
    *
    * Elle était réévaluée en continu : chaque zoom changeait la cadence, donc le
@@ -1058,6 +1073,7 @@ export function Globe(props: GlobeProps) {
   return (
     <>
       <Canvas
+        key={glKey}
         // `preserveDrawingBuffer` et l'antialiasing de contexte sont inutiles
         // ici (le composer gère l'anticrénelage) et coûtaient une copie par image.
         camera={{ position: [0, 120, 820], fov: 30, near: 1, far: 10000 }}

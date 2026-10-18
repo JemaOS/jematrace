@@ -31,9 +31,29 @@ export interface InspectResponse {
  * C'est l'ancre du tracé : les premiers sauts (faible latence) sont près de
  * cette IP, ce qui évite de les placer à l'autre bout du pays.
  */
+/**
+ * IP publique du visiteur, pour situer le point de départ (#0).
+ *
+ * On demande **au serveur** de la lire dans `x-forwarded-for` : c'est l'IP que
+ * Vercel voit réellement, sans dépendre d'un tiers (les appels à 1.1.1.1 ou
+ * ipify sont bloqués par certains réseaux mobiles et extensions). Les services
+ * externes ne servent que de repli, et `cache: 'no-store'` évite qu'un
+ * changement de réseau (5G ↔ Wi-Fi) renvoie l'ancienne IP.
+ */
 export async function detectClientIp(): Promise<string | null> {
   try {
-    const res = await fetch('https://1.1.1.1/cdn-cgi/trace', {
+    const res = await fetch('/api/myip', { cache: 'no-store', signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = (await res.json()) as { ip?: string | null };
+      if (data.ip) return data.ip;
+    }
+  } catch {
+    // le serveur n'a pas répondu : on tente les services publics
+  }
+
+  try {
+    const res = await fetch(`https://1.1.1.1/cdn-cgi/trace?t=${Date.now()}`, {
+      cache: 'no-store',
       signal: AbortSignal.timeout(3000),
     });
     if (res.ok) {
@@ -45,7 +65,8 @@ export async function detectClientIp(): Promise<string | null> {
   }
 
   try {
-    const res = await fetch('https://api.ipify.org?format=json', {
+    const res = await fetch(`https://api.ipify.org?format=json&t=${Date.now()}`, {
+      cache: 'no-store',
       signal: AbortSignal.timeout(3000),
     });
     if (res.ok) return ((await res.json()) as { ip?: string }).ip ?? null;

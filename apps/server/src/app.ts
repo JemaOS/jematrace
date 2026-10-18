@@ -44,6 +44,18 @@ app.get('/api/health', async () => ({
   cableNodes: cableCount(),
 }));
 
+/**
+ * IP publique du visiteur, telle que le proxy la voit.
+ *
+ * Le navigateur ne peut pas toujours la découvrir seul : les appels à 1.1.1.1
+ * ou ipify sont bloqués sur certains réseaux mobiles, et le résultat était mis
+ * en cache au changement de réseau (5G ↔ Wi-Fi). Ici elle est toujours à jour.
+ */
+app.get('/api/myip', async (request) => {
+  const ip = publicIpFrom(request.headers['x-forwarded-for'], request.ip);
+  return { ip };
+});
+
 interface InspectBody {
   text?: string;
   mode?: RouteMode;
