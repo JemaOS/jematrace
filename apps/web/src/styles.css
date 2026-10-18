@@ -1179,14 +1179,34 @@ img.flag {
     z-index: 0;
   }
 
-  .ctrl-left,
-  .ctrl-right {
+/* Les deux groupes de contrôles se chevauchaient : ils sont ancrés au même
+     bas et, à 390 px, `.ctrl-right` (boutons + sélecteur) fait presque toute
+     la largeur. On les empile, chacun sur sa ligne, et on laisse la ligne
+     passer à la suivante si le sélecteur ne tient pas. */
+  .ctrl-left {
     top: auto;
-    bottom: 58px;
+    left: 12px;
+    right: 12px;
+    bottom: 100px;
+    flex-wrap: wrap;
   }
 
-  .ctrl-left { left: 12px; }
-  .ctrl-right { right: 12px; }
+  .ctrl-right {
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 58px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  /* Sans cette limite, le sélecteur (dont l'option la plus longue fait
+     « Jour/Nuit + Frontières ») forçait la ligne à passer à la suivante et
+     grandissait sous le groupe du dessus. */
+  .ctrl-right select {
+    max-width: 152px;
+    min-width: 0;
+  }
 
   .bottom-bar {
     left: 12px;
@@ -1194,9 +1214,10 @@ img.flag {
     bottom: 12px;
   }
 
+  /* La légende recouvrait les contrôles et l'attribution : on la masque en
+     vue empilée, les latences restent lisibles dans le volet. */
   .legend {
-    right: 8px;
-    bottom: 8px;
+    display: none;
   }
 
   .notice {

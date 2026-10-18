@@ -22,8 +22,14 @@ function roots(fromModuleUrl: string): string[] {
   if (forced) roots.push(forced);
 
   // À côté du module (développement) puis un cran au-dessus (dist/).
-  const moduleDir = fileURLToPath(new URL('.', fromModuleUrl));
-  roots.push(moduleDir, join(moduleDir, '..'));
+  // En serverless, `import.meta.url` peut être réécrit par le bundler : on
+  // n'échoue jamais à cause de lui.
+  try {
+    const moduleDir = fileURLToPath(new URL('.', fromModuleUrl));
+    roots.push(moduleDir, join(moduleDir, '..'));
+  } catch {
+    // URL inexploitable : les racines ci-dessous suffisent.
+  }
 
   // Depuis le répertoire courant (serverless, monorepo).
   roots.push(process.cwd(), join(process.cwd(), '..'), join(process.cwd(), '..', '..'));

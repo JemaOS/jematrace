@@ -6,7 +6,7 @@
   "functions": {
     "api/index.ts": {
       "maxDuration": 30,
-      "includeFiles": "data/**"
+      "includeFiles": "{data/**,packages/geo-data/geoip/**,apps/web/public/world/**}"
     }
   },
   "rewrites": [

@@ -416,6 +416,12 @@ export default function App() {
         if (res.error || !res.result) {
           setError(res.error ?? 'Traceroute illisible.');
           setData(null);
+        } else if (res.hops.length === 0) {
+          // Texte collé qui ne contient aucun saut reconnaissable : sans ce
+          // garde-fou, on affichait une fiche vide (cible inconnue, 0 km) et
+          // elle partait dans l'historique.
+          setError(t('paste.noHops'));
+          setData(null);
         } else {
           setData(res);
           setPanelOpen(true);
@@ -443,7 +449,7 @@ export default function App() {
         setBooting(false);
       }
     },
-    [prefs.route],
+    [prefs.route, t],
   );
 
   /**
@@ -661,7 +667,7 @@ export default function App() {
           <ul>
             <li>Contours du monde : Natural Earth (domaine public).</li>
             <li>Câbles sous-marins : TeleGeography, licence CC BY-NC-SA (usage non commercial).</li>
-            <li>Ville et coordonnées : ip-api (fournisseur temporaire).</li>
+            <li>Ville et coordonnées : DB-IP City Lite (CC BY 4.0), avec repli sur ip-api.</li>
             <li>ASN : RIPEstat (RIPE NCC).</li>
             <li>Base ville locale : DB-IP Lite (CC BY 4.0).</li>
             <li>Tuiles de la carte 2D : OpenStreetMap / CARTO.</li>
