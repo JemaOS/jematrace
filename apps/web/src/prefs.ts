@@ -26,7 +26,9 @@ export const DEFAULT_PREFS: Prefs = {
   route: 'topo',
   look: 'vector',
   cables: true,
-  cities: true,
+  // Les villes sont masquées au premier lancement : le globe reste lisible,
+  // l'utilisateur les active s'il le souhaite.
+  cities: false,
   geek: false,
 };
 
@@ -48,7 +50,7 @@ export function readPrefs(): Prefs {
     route: readCookie(`${PREFIX}route`) === 'line' ? 'line' : 'topo',
     look: readCookie(`${PREFIX}look`) ?? DEFAULT_PREFS.look,
     cables: readCookie(`${PREFIX}cables`) !== '0',
-    cities: readCookie(`${PREFIX}cities`) !== '0',
+    cities: readCookie(`${PREFIX}cities`) === '1',
     geek: readCookie(`${PREFIX}geek`) === '1',
   };
 }

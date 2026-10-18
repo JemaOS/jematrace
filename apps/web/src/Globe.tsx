@@ -739,6 +739,7 @@ function PerfReporter({ onSample }: { onSample: (meanMs: number) => void }) {
  */
 function Photon({ located }: { located: InspectHop[] }) {
   const ref = useRef<THREE.Group>(null);
+  const sprite = useRef<THREE.Sprite>(null);
   const progress = useRef(0);
 
   const curve = useMemo(() => {
@@ -755,11 +756,21 @@ function Photon({ located }: { located: InspectHop[] }) {
 
   useFrame((_, delta) => {
     if (!ref.current || !curve) return;
-    progress.current = (progress.current + delta * 0.045) % 1;
+    // Vitesse du site de référence : `u = (time * 0.18) % 1`, soit un tour
+    // complet en ~5,6 s (nous étions à 0.045, donc quatre fois trop lent).
+    progress.current = (progress.current + delta * 0.18) % 1;
+    const u = progress.current;
+
     // Le photon flotte un peu au-dessus de la surface : posé dessus, il la rase
     // et le test de profondeur le fait clignoter ou disparaître.
-    const point = curve.getPointAt(progress.current);
+    const point = curve.getPointAt(u);
     ref.current.position.copy(point).addScaledVector(point.clone().normalize(), 1.6);
+
+    // Opacité du halo selon la position sur le trajet (0,55 → 1 → 0,55), comme
+    // la référence : le photon s'efface à l'approche des deux extrémités.
+    if (sprite.current) {
+      (sprite.current.material as THREE.SpriteMaterial).opacity = 0.55 + 0.45 * Math.sin(u * Math.PI);
+    }
   });
 
   if (!curve) return null;
@@ -770,7 +781,7 @@ function Photon({ located }: { located: InspectHop[] }) {
         <sphereGeometry args={[1.5, 16, 16]} />
         <meshBasicMaterial color="#ffffff" toneMapped={false} />
       </mesh>
-      <sprite scale={[9, 9, 1]} renderOrder={11}>
+      <sprite ref={sprite} scale={[9, 9, 1]} renderOrder={11}>
         <spriteMaterial
           map={glowTexture()}
           color="#fff2d8"
