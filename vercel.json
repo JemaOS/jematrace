@@ -9,9 +9,5 @@
       "maxDuration": 30,
       "includeFiles": "data/**"
     }
-  },
-  "routes": [
-    { "handle": "filesystem" },
-    { "src": "/.*", "dest": "/index.html" }
-  ]
+  }
 }
