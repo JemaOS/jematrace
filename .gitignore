@@ -15,3 +15,5 @@ data/geo/FR.zip
 data/geo/ne_10m_places.geojson
 
 .vercel
+.vercel
+.env*

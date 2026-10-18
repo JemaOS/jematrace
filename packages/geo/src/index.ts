@@ -5,10 +5,10 @@
 
 import type { CityGroup, Hop, ResolvedHop, Segment } from '@geotrace/shared';
 
-import { cityByCode, cityByName, FACILITY_OVERRIDES, HOSTNAME_STOPWORDS, POP_OVERRIDES } from './airports';
+import { cityByCode, cityByName, FACILITY_OVERRIDES, HOSTNAME_STOPWORDS, POP_OVERRIDES } from './airports.js';
 
-export { AIRPORTS, AIRPORT_COUNT, ANCHOR_OVERRIDES, cityByCode, cityByName, FACILITY_OVERRIDES, HOSTNAME_STOPWORDS, POP_OVERRIDES } from './airports';
-export type { CityRef } from './airports';
+export { AIRPORTS, AIRPORT_COUNT, ANCHOR_OVERRIDES, cityByCode, cityByName, FACILITY_OVERRIDES, HOSTNAME_STOPWORDS, POP_OVERRIDES } from './airports.js';
+export type { CityRef } from './airports.js';
 
 /** Point géographique : `[latitude, longitude]`, comme les données de câbles. */
 export type LatLon = readonly [number, number];
@@ -190,7 +190,7 @@ export function rdnsCandidates(host: string | null): CityCandidate[] {
     const token = raw.replace(/\d+/g, '');
     if (!token || HOSTNAME_STOPWORDS.has(token)) continue;
 
-    // Surcharge de POP op�rateur, prioritaire sur la lecture IATA.
+    // Surcharge de POP op�rateur, prioritaire sur la lecture IATA.
     const override = POP_OVERRIDES[token];
     if (override && !seen.has(override.city)) {
       seen.add(override.city);
