@@ -871,8 +871,21 @@ function Camera({ focus }: { focus: THREE.Vector3 | null }) {
 
   useEffect(() => {
     const c = new OrbitControls(camera as THREE.PerspectiveCamera, gl.domElement);
+    /**
+     * Sur écran tactile, la rotation est bien trop rapide par défaut :
+     * OrbitControls divise le déplacement par la **hauteur** de l'élément et
+     * multiplie par `rotateSpeed` (1). Sur un téléphone, un glissement d'une
+     * largeur d'écran fait donc presque un tour complet. On ralentit
+     * franchement, avec un amorti plus ferme pour éviter la glisse.
+     */
+    const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+    // Une tablette ou un pliable ouvert a une surface large : inutile de
+    // ralentir autant que sur un téléphone étroit.
+    const smallTouch = coarse && size.width < 700;
+    c.rotateSpeed = coarse ? (smallTouch ? 0.42 : 0.62) : 1;
+    c.zoomSpeed = coarse ? (smallTouch ? 0.55 : 0.75) : 1;
     c.enableDamping = true;
-    c.dampingFactor = 0.08;
+    c.dampingFactor = coarse ? 0.14 : 0.08;
     c.enablePan = false;
     // On peut reculer nettement au-delà du cadrage « globe entier » — c'est ce
     // qui manquait : l'ancien plafond fixe de 1 000 empêchait de dézoomer sur
@@ -882,7 +895,7 @@ function Camera({ focus }: { focus: THREE.Vector3 | null }) {
     c.update();
     controls.current = c;
     return () => c.dispose();
-  }, [camera, gl, fitDistance]);
+  }, [camera, gl, fitDistance, size.width]);
 
   useEffect(() => {
     if (!focus) return;
