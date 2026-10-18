@@ -8,6 +8,8 @@ réseau de câbles sous-marins, lumières des villes, 11 apparences.
 
 Aucune sonde, aucun compte, aucune inscription : la mesure vient de **votre** machine.
 
+**Démo en ligne : <https://routescope.vercel.app>**
+
 <p align="center">
   <img src="apps/web/public/icon.svg" width="96" alt="RouteScope">
 </p>
@@ -278,8 +280,11 @@ données ou obtenez une licence.
 
 ### Vercel (front + API)
 
+Instance publique : **<https://routescope.vercel.app>**
+
 Le dépôt contient une fonction serverless (`api/`) qui réutilise l'application Fastify.
-Le build compile les paquets, génère la fonction puis construit l'interface.
+`npm run build` enchaîne : compilation TypeScript, build Vite, **bundle esbuild** de la
+fonction, puis copie du statique dans `public/`.
 
 ```bash
 npm i -g vercel
@@ -287,11 +292,31 @@ vercel link
 vercel --prod
 ```
 
-Variables d'environnement utiles :
+Trois points spécifiques à Vercel, déjà réglés dans le dépôt :
 
-| Nom | Rôle |
+1. **La fonction est pré-bundlée** (`tools/build-api.mjs` → `api/bundle.mjs`). Vercel
+   laisse les paquets du monorepo (`@geotrace/*`) en imports externes et n'embarque pas
+   `node_modules` : sans bundle, la fonction plante au démarrage.
+2. **Les routes sont réécrites** vers `api/index` avec le chemin d'origine en `?__path=`.
+   Hors framework Next, un fichier `api/[...path].ts` n'est pas traité comme une route
+   dynamique.
+3. **La sortie statique va dans `public/`**, dossier servi à la racine pour un projet
+   « autre ». Définir `outputDirectory` désactive le routage des fonctions.
+
+La protection de déploiement doit être désactivée, sinon toutes les URL répondent
+« Login – Vercel » (y compris `/api/*`) :
+
+```bash
+vercel project protection disable routescope --sso
+```
+
+| Variable | Rôle |
 |---|---|
 | `GEOTRACE_DATA_DIR` | racine des fichiers de données (par défaut : détection automatique) |
+
+> En production, la base GeoIP n'est pas embarquée (121 Mo) : la géolocalisation passe
+> par `ip-api`. Pour la précision maximale, ajoutez `packages/geo-data/geoip/**` aux
+> `includeFiles` de la fonction et déposez-y le `.mmdb`.
 
 ### Auto-hébergement
 
