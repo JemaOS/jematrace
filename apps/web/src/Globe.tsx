@@ -331,7 +331,7 @@ function CableLayer({
   const isNewColor = useMemo(() => new THREE.Color(palette.isNew.color), [palette]);
   const decommissioned = useMemo(() => new THREE.Color(palette.decommissioned.color), [palette]);
   /** Sommets d'un câble, interpolés sur la sphère. */
-  const pushCable = (positions: number[], cable: CableWorld['cables'][number]) => {
+  const pushCable = (positions: number[], cable: CableWorld['cables'][number], radius = R + 0.4) => {
     for (const line of cable.lines) {
       for (let i = 1; i < line.length; i++) {
         const a = line[i - 1]!;
@@ -362,13 +362,13 @@ function CableLayer({
   };
 
   /** Assemble des câbles triés par année et mémorise les seuils cumulés. */
-  const makeBatch = (cables: CableWorld['cables']): CableBatch => {
+  const makeBatch = (cables: CableWorld['cables'], radius = R + 0.4): CableBatch => {
     const sorted = [...cables].sort((a, b) => a.year - b.year);
     const positions: number[] = [];
     const stops: CableBatch['stops'] = [];
 
     for (const cable of sorted) {
-      pushCable(positions, cable);
+      pushCable(positions, cable, radius);
       if (stops.length === 0 || stops[stops.length - 1]!.year !== cable.year) {
         stops.push({ year: cable.year, count: positions.length / 3 });
       } else {
@@ -467,45 +467,27 @@ function CableLayer({
 
   /**
   /**
-   * Câble mis en avant (survol prioritaire, sinon sélection) : un **tube**
-   * blanc posé sur le tracé.
+  /**
+   * Câble mis en avant (survol prioritaire, sinon sélection).
    *
-   * Pourquoi un tube et non une ligne : en WebGL, linewidth est ignoré par
-   * toutes les implémentations courantes — un trait blanc d'un pixel se
-   * confond avec les câbles cyan et ne sert à rien. Le tube est épais, donc
-   * visible, et il est seul (un câble à la fois) : le coût reste négligeable.
+   * Même **épaisseur** que les câbles d'origine : uniquement la couleur change.
+   * En WebGL linewidth est ignoré, donc le trait fait un pixel — comme les
+   * autres câbles — et c'est précisément ce que l'on veut. Le tracé est posé
+   * un peu plus haut (R + 0,9 au lieu de R + 0,4) pour ne pas clignoter avec
+   * le câble cyan qu'il recouvre, et dessiné après lui.
    */
-  (window as unknown as { __jmCL?: unknown }).__jmCL = { hovered, selected, hasData: !!data };
   const highlight = hovered ?? selected;
   const highlightGeometry = useMemo(() => {
     if (!data || !highlight) return null;
     const cable = data.cables.find((c) => c.name === highlight);
     if (!cable) return null;
     if (cable.year > year || (cable.end !== null && cable.end < year)) return null;
-
-    const white = new THREE.Color('#ffffff');
-    const parts: Array<{ geo: THREE.BufferGeometry; color: THREE.Color; arc: number }> = [];
-    for (const line of cable.lines) {
-      if (line.length < 2) continue;
-      // Points posés un peu au-dessus de la surface du globe.
-      const pts = line.map(([lon, lat]) => latLonToVec3(lat, lon, R + 1.4));
-      const curve = new THREE.CatmullRomCurve3(pts);
-      const tubular = Math.max(8, Math.min(400, pts.length * 2));
-      parts.push({ geo: new THREE.TubeGeometry(curve, tubular, 1.6, 8, false), color: white, arc: 0 });
-    }
-    if (parts.length === 0) return null;
-    const merged = mergeTubes(parts);
-    (window as unknown as { __jmHighlight?: unknown }).__jmHighlight = {
-      name: highlight,
-      verts: merged.getAttribute('position')?.count ?? 0,
-      hasColor: !!merged.getAttribute('color'),
-    };
-    return merged;
+    return makeBatch([cable], R + 0.9);
   }, [data, highlight, year]);
 
   useEffect(() => {
     if (!highlightGeometry) return;
-    return () => highlightGeometry.dispose();
+    return () => highlightGeometry.geometry.dispose();
   }, [highlightGeometry]);
   // Seuil de raycast plus large : les câbles sont des lignes d'épaisseur nulle.
   const { raycaster } = useThree();
@@ -587,20 +569,18 @@ function CableLayer({
         </lineSegments>
       )}
 
-      {/* Câble sélectionné : blanc, au-dessus du réseau. */}
-      {/* Câble survolé ou sélectionné : tube blanc épais, au-dessus du réseau. */}
+      {/* Câble survolé ou sélectionné : même épaisseur que les autres, en blanc. */}
       {highlightGeometry && (
-        <mesh geometry={highlightGeometry} renderOrder={2}>
-          <meshBasicMaterial
-            vertexColors
+        <lineSegments geometry={highlightGeometry.geometry} renderOrder={2}>
+          <lineBasicMaterial
+            color="#ffffff"
             transparent
             opacity={palette.selected.opacity}
             depthWrite={false}
             toneMapped={false}
           />
-        </mesh>
+        </lineSegments>
       )}
-
       {/* Zone de clic invisible : le nom du câble s'ouvre au clic. */}
       {picking && (
         <lineSegments
