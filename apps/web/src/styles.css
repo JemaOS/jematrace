@@ -551,13 +551,29 @@ button.ghost {
   font-size: 11px;
 }
 
+/*
+ * Globe décalé du volet (300 px) : il est ainsi centré dans l'espace
+ * réellement visible, et non dans la fenêtre entière où il paraissait
+ * déporté vers la gauche.
+ *
+ * Uniquement en 3D et en vue large : la carte 2D gère déjà ce décalage avec
+ * le retrait de itBounds, et en vue empilée le volet est au-dessus.
+ */
+@media (min-width: 681px) {
+  .canvas-wrap--globe {
+    left: 300px;
+  }
+}
 .canvas-wrap {
   position: absolute;
   inset: 0;
-  /* Fond sombre sous le canvas : si le contexte WebGL est perdu, le canvas
-     devient blanc, et sans ce fond c'est toute la zone qui flashe en blanc
-     avant la reconstruction. */
-  background: var(--bg);
+  /*
+   * Fond **toujours sombre**, y compris en thème clair : la carte et le globe
+   * ont leur propre palette. Avec `--bg`, le mode clair affichait une grande
+   * zone blanche pendant le chargement du globe, et le canvas vide devenait un
+   * disque clair avant l'arrivée de la texture.
+   */
+  background: var(--map-bg);
 }
 
 .spinner {
@@ -1893,6 +1909,19 @@ button.primary {
 
 /* Isole le canvas : sans �a, les panneaux Leaflet (z-index 400+) passent
    au-dessus du panneau lat�ral et de la barre du haut. */
+/*
+ * Globe décalé du volet (300 px) : il est ainsi centré dans l'espace
+ * réellement visible, et non dans la fenêtre entière où il paraissait
+ * déporté vers la gauche.
+ *
+ * Uniquement en 3D et en vue large : la carte 2D gère déjà ce décalage avec
+ * le retrait de itBounds, et en vue empilée le volet est au-dessus.
+ */
+@media (min-width: 681px) {
+  .canvas-wrap--globe {
+    left: 300px;
+  }
+}
 .canvas-wrap {
   z-index: 0;
 }
@@ -2006,7 +2035,20 @@ img.flag {
     z-index: 6;
   }
 
-  .canvas-wrap {
+  /*
+ * Globe décalé du volet (300 px) : il est ainsi centré dans l'espace
+ * réellement visible, et non dans la fenêtre entière où il paraissait
+ * déporté vers la gauche.
+ *
+ * Uniquement en 3D et en vue large : la carte 2D gère déjà ce décalage avec
+ * le retrait de itBounds, et en vue empilée le volet est au-dessus.
+ */
+@media (min-width: 681px) {
+  .canvas-wrap--globe {
+    left: 300px;
+  }
+}
+.canvas-wrap {
     position: relative;
     inset: auto;
     flex: 1 1 auto;

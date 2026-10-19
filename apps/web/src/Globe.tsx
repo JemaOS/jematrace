@@ -89,12 +89,20 @@ const ATMO_FRAG = `
 `;
 
 function Earth({ world, look }: { world: WorldData | null; look: Look }) {
-  // `maxTextureSize` évite de demander au GPU plus qu'il ne sait faire.
+  /**
+   * `maxTextureSize` évite de demander au GPU plus qu'il ne sait faire.
+   *
+   * Le plancher n'est pas décoratif : juste après la création du contexte,
+   * `capabilities.maxTextureSize` peut valoir 0. On construisait alors une
+   * texture de 0 × 0, que le GPU rejetait — et three.js dessine **blanc** une
+   * texture sans données valides. C'était le « globe blanc » du chargement.
+   */
   const maxTexture = useThree((s) => s.gl.capabilities.maxTextureSize);
-  const texture = useMemo(
-    () => (world ? buildEarthTexture(world, look, Math.min(earthTextureWidth(), maxTexture)) : null),
-    [world, look, maxTexture],
-  );
+  const texture = useMemo(() => {
+    if (!world) return null;
+    const width = Math.max(256, Math.min(earthTextureWidth(), maxTexture || 2048));
+    return buildEarthTexture(world, look, width);
+  }, [world, look, maxTexture]);
   useEffect(() => () => texture?.dispose(), [texture]);
 
   const rimUniforms = useMemo(
@@ -1482,6 +1490,21 @@ export function Globe(props: GlobeProps) {
   // (haut-droite), elle recouvrait les contrôles sur tablette et pliable.
   const tipX = hover ? Math.min(Math.max(12, hover.x - 90), Math.max(12, window.innerWidth - 220)) : 0;
   const tipY = hover ? Math.min(Math.max(12, hover.y - 54), Math.max(12, window.innerHeight - 52)) : 0;
+
+  /**
+   * On n'affiche pas la scène tant que les données du monde ne sont pas là.
+   *
+   * Le globe apparaissait **blanc** pendant le chargement : la texture n'étant
+   * pas encore construite, la sphère était rendue sans elle, puis se
+   * remplaçait par le vrai visuel une fois les données arrivées. En attendant,
+   * on montre le même écran d'attente que la coquille de l'application.
+   *
+   * Placé après tous les hooks : un `return` anticipé plus haut changerait le
+   * nombre de hooks entre deux rendus, ce que React interdit.
+   */
+  if (!world) {
+    return <div className="spinner">Chargement du globe...</div>;
+  }
 
   return (
     <>

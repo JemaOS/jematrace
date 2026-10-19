@@ -697,7 +697,8 @@ ull = cadrage normal (traceroute / frise).
         </button>
       )}
 
-      <div className="canvas-wrap">
+      {/* En 3D, le fond décalé du volet centre le globe dans l'espace visible. */}
+      <div className={panelOpen && prefs.view === '3d' ? 'canvas-wrap canvas-wrap--globe' : 'canvas-wrap'}>
         <Suspense fallback={<div className="spinner">Chargement du globe...</div>}>
         {prefs.view === '2d' ? (
           <Map2D
