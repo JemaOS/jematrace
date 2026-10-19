@@ -24,7 +24,7 @@ function normalize(text: string): string {
     .replace(/[\u00a0\u202f\u2007]/g, ' ');
 }
 
-/** IP privée, loopback ou link-local (jamais géolocalisable). */
+/** IP privée, loopback, link-local ou espace partagé (CGNAT). */
 export function isPrivateIp(ip: string): boolean {
   if (ip.includes(':')) {
     const v = ip.toLowerCase();
@@ -40,12 +40,24 @@ export function isPrivateIp(ip: string): boolean {
     (a === 192 && b === 168) ||
     (a === 172 && b >= 16 && b <= 31) ||
     (a === 169 && b === 254) ||
+    // 100.64.0.0/10 : espace partagé des opérateurs (CGNAT). C'est aussi
+    // l'adresse des conteneurs Linux sur ChromeOS (100.115.92.x) : jamais
+    // géolocalisable, elle ne doit pas apparaître comme un saut public.
+    (a === 100 && b >= 64 && b <= 127) ||
     a >= 224
   );
 }
 
-const HOST_WITH_BRACKETS = /^(.*?)\s*\[([0-9a-fA-F:.]+)\]$/;
-const HOST_WITH_PARENS = /^(.*?)\s*\(([0-9a-fA-F:.]+)\)$/;
+const HOST_WITH_BRACKETS = /^(.*?)\s*\[([0-9a-fA-F:.]+)\]/;
+/**
+ * `nom (1.2.3.4)` — **première** occurrence, pas la dernière.
+ *
+ * Une ligne multipath (ECMP) peut contenir plusieurs répondeurs :
+ * `72.14.203.56 (72.14.203.56)  16.4 ms 72.14.197.198 (72.14.197.198)  8.7 ms *`.
+ * En ancrant sur la fin, on prenait la dernière IP et un « nom » qui était en
+ * réalité la concaténation des deux — illisible dans le panneau.
+ */
+const HOST_WITH_PARENS = /^(.*?)\s*\(([0-9a-fA-F:.]+)\)/;
 const IPV4 = /^(?:\d{1,3}\.){3}\d{1,3}$/;
 
 /** `true` si la chaîne est une IP v4 ou v6 plausible (rejette `.` ou `...`). */
@@ -157,7 +169,14 @@ function parseTracerouteLinux(lines: string[], warnings: string[]): { target: st
   const hops: Hop[] = [];
 
   for (const line of lines) {
-    const head = /traceroute to\s+(\S+)\s+\(([^)]+)\)(?:,\s*(\d+)\s+hops max)?/i.exec(line);
+    /**
+     * En-tête : `traceroute to hôte (ip), 30 hops max, 60 byte packets`.
+     *
+     * Le `tr` initial est parfois mangé par le copier-coller (« aceroute to »),
+     * et certains systèmes écrivent `trace route to`. On accepte donc n'importe
+     * quel préfixe court devant `route to`, tant que la forme attendue suit.
+     */
+    const head = /\b[a-z]{0,6}route\s+to\s+(\S+)\s+\(([^)]+)\)(?:,\s*(\d+)\s+hops\s+max)?/i.exec(line);
     if (head) {
       target = head[1]!;
       destIp = head[2]!;
@@ -635,7 +654,12 @@ function detectFormat(text: string): TraceFormat {
   if (/\.\|\-\-|loss%\s+snt/i.test(text)) return 'mtr';
   if (/resume:\s*pmtu|^\s*\d+\?:\s/mi.test(text)) return 'tracepath';
   if (/^\s*crosh>\s*tracepath\b/im.test(text)) return 'tracepath';
-  if (/traceroute to /i.test(text)) return 'traceroute';
+  /**
+   * `traceroute to …` avec un préfixe abîmé (« aceroute to ») : on ne peut pas
+   * exiger le mot complet, mais la forme `… route to hôte (ip)` est sans
+   * ambiguïté — tracert écrit `tracing route to hôte over a maximum of`.
+   */
+  if (/(?:^|\n)\s*[A-Za-z]{0,6}route\s+to\s+\S+\s+\(/i.test(text)) return 'traceroute';
   return 'tracert';
 }
 

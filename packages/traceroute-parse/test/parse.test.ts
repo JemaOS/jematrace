@@ -143,9 +143,53 @@ describe('tracepath (ChromeOS crosh)', () => {
   });
 });
 
+describe('traceroute Linux réel (multipath, en-tête abîmé, CGNAT)', () => {
+  // Cas réel : le « tr » de « traceroute » a été mangé par le collage, le saut 8
+  // contient deux répondeurs (ECMP), et les sauts 1-2 sont en 100.64/10 (CGNAT).
+  const LINUX = `aceroute to youtube.com (142.251.209.78), 30 hops max, 60 byte packets
+ 1  _gateway (100.115.92.193)  0.021 ms  0.008 ms  0.006 ms
+ 2  100.115.92.25 (100.115.92.25)  0.265 ms  0.226 ms  0.534 ms
+ 3  192.168.1.1 (192.168.1.1)  3.163 ms  3.140 ms  3.119 ms
+ 4  80.15.224.25 (80.15.224.25)  16.321 ms  16.300 ms  16.279 ms
+ 5  92.184.150.30 (92.184.150.30)  16.258 ms  16.238 ms  16.217 ms
+ 6  ae43-0.nimar202.rbci.orange.net (193.252.103.241)  16.196 ms  14.870 ms  16.602 ms
+ 7  * * *
+ 8  72.14.203.56 (72.14.203.56)  16.470 ms 72.14.197.198 (72.14.197.198)  8.744 ms *
+ 9  ncmrsa-ai-in-f14.1e100.net (142.251.209.78)  12.654 ms  19.170 ms  14.019 ms`;
+
+  const r = parseTraceroute(LINUX);
+
+  it('reconnaît le format malgré l’en-tête tronqué', () => {
+    expect(r.format).toBe('traceroute');
+    expect(r.target).toBe('youtube.com');
+    expect(r.destIp).toBe('142.251.209.78');
+    expect(r.maxHops).toBe(30);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('lit les 9 sauts et garde le saut muet', () => {
+    expect(r.hops.map((h) => h.ttl)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    expect(r.hops[6]).toMatchObject({ ip: null, timeout: true });
+  });
+
+  it('prend le premier répondeur d’une ligne multipath, sans nom parasite', () => {
+    const hop8 = r.hops[7]!;
+    expect(hop8.ip).toBe('72.14.203.56');
+    // Avant, le « nom » valait « 72.14.203.56 (72.14.203.56) 72.14.197.198 ».
+    expect(hop8.host).toBeNull();
+    expect(hop8.rttMs).toEqual([16.47, 8.744]);
+  });
+
+  it('traite le CGNAT 100.64/10 comme un réseau non géolocalisable', () => {
+    expect(r.hops[0]!.private).toBe(true);
+    expect(r.hops[0]!.host).toBe('_gateway');
+    expect(r.hops[1]!.private).toBe(true);
+    expect(r.hops[2]!.private).toBe(true);
+    expect(r.hops[3]!.private).toBe(false);
+  });
+});
+
 describe('tracepath crosh (sortie réelle)', () => {
-  // Cas réel : le saut 6 a son IP détachée, plusieurs lignes vides plus bas
-  // (le terminal a coupé la ligne), et la trace se termine par « Too many hops ».
   const REAL = `crosh> tracepath youtube.com
  1?: [LOCALHOST]                      pmtu 1500
  1:  livebox.home                                          3.456ms
