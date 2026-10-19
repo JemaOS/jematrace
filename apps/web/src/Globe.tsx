@@ -1017,16 +1017,28 @@ export function Globe(props: GlobeProps) {
    */
   const [glKey, setGlKey] = useState(0);
 
-  useEffect(() => {
-    const onRestored = () => setGlKey((k) => k + 1);
-    const canvas = document.querySelector('.canvas-wrap canvas');
-    canvas?.addEventListener('webglcontextrestored', onRestored);
-    window.addEventListener('webglcontextrestored', onRestored);
-    return () => {
-      canvas?.removeEventListener('webglcontextrestored', onRestored);
-      window.removeEventListener('webglcontextrestored', onRestored);
-    };
-  }, [glKey]);
+  /**
+   * Reconstruction après perte de contexte. Un court délai laisse au navigateur
+   * le temps de libérer l'ancien contexte ; les tentatives sont espacées et
+   * plafonnées, pour ne pas boucler sur un appareil incapable de créer un
+   * contexte (économie d'énergie extrême).
+   */
+  const lostRef = useRef(0);
+  const remountTimer = useRef<number | null>(null);
+
+  const recomputeKey = useCallback(() => {
+    if (lostRef.current >= 3) return;
+    lostRef.current += 1;
+    if (remountTimer.current) window.clearTimeout(remountTimer.current);
+    remountTimer.current = window.setTimeout(() => setGlKey((k) => k + 1), 150 * lostRef.current);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (remountTimer.current) window.clearTimeout(remountTimer.current);
+    },
+    [],
+  );
   /**
    * Résolution calibrée **une fois**, puis figée.
    *
@@ -1095,6 +1107,35 @@ export function Globe(props: GlobeProps) {
         // Un tap dans le vide referme l'infobulle (indispensable au
         // tactile : `pointerout` n'y est pas fiable).
         onPointerMissed={() => setHover(null)}
+        /**
+         * Perte de contexte WebGL : c'est la cause du globe **blanc**.
+         *
+         * Chrome peut révoquer le contexte à tout moment (mémoire GPU,
+         * onglet en arrière-plan, changement d'écran). Le canvas reste alors
+         * affiché en blanc, indéfiniment, et seule une rechargement le
+         * réparait. `webglcontextrestored` ne suffisait pas : Chrome ne
+         * restaure pas toujours, et l'événement n'arrive jamais dans ce cas.
+         *
+         * On reconstruit donc la scène dès la **perte** : `preventDefault`
+         * autorise la restauration, on masque le canvas pour éviter le flash,
+         * puis on change la clé — React démonte et remonte un canvas neuf avec
+         * un contexte neuf. Deux tentatives espacées couvrent le cas où le GPU
+         * n'est pas encore prêt.
+         */
+        onCreated={({ gl }) => {
+          const canvas = gl.domElement;
+          const onLost = (event: Event) => {
+            event.preventDefault();
+            canvas.style.visibility = 'hidden';
+            recomputeKey();
+          };
+          canvas.addEventListener('webglcontextlost', onLost, false);
+          // Contexte stable : on réarme le compteur, pour continuer à
+          // récupérer lors d'une perte ultérieure (session longue).
+          window.setTimeout(() => {
+            lostRef.current = 0;
+          }, 5000);
+        }}
       >
         <color attach="background" args={[props.look.background]} />
         <PerfReporter onSample={onSample} />

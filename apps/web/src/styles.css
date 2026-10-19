@@ -445,6 +445,10 @@ button.ghost {
 .canvas-wrap {
   position: absolute;
   inset: 0;
+  /* Fond sombre sous le canvas : si le contexte WebGL est perdu, le canvas
+     devient blanc, et sans ce fond c'est toute la zone qui flashe en blanc
+     avant la reconstruction. */
+  background: #04070d;
 }
 
 .spinner {
