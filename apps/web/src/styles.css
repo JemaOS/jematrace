@@ -601,7 +601,10 @@ button.ghost {
   justify-content: space-between;
   padding: 0 16px;
   z-index: 5;
-  background: linear-gradient(to bottom, var(--overlay), transparent);
+  /* Aucun fond : le bandeau est posé sur la carte, qui reste sombre dans tous
+     les thèmes. Un dégradé clair en mode clair blanchissait le haut du globe et
+     rendait les liens illisibles. */
+  background: none;
   pointer-events: none;
 }
 
@@ -626,17 +629,28 @@ button.ghost {
   gap: 14px;
 }
 
+/*
+ * Les liens de navigation flottent au-dessus de la carte, dont la luminosité
+ * varie énormément (lumières de villes, Atlas clair). Un texte nu y devient
+ * illisible : on leur donne la même pastille opaque que les autres contrôles,
+ * donc lisibles dans tous les thèmes et sur tous les fonds.
+ */
 .topbar nav button {
-  background: none;
-  border: none;
-  color: var(--muted);
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--overlay);
+  color: var(--text);
   font-size: 13px;
   cursor: pointer;
-  padding: 4px 2px;
+  backdrop-filter: blur(6px);
+  transition: border-color 0.15s, color 0.15s;
 }
 
-.topbar nav button:hover {
-  color: var(--text);
+.topbar nav button:hover,
+.topbar nav button:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* --------------------------------------------------------------- contr�les */
