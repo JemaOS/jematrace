@@ -11,4 +11,4 @@ const PORT = Number.parseInt(process.env.PORT ?? '8787', 10);
 
 const app = await buildApp();
 await app.listen({ port: PORT, host: '127.0.0.1' });
-app.log.info(`Jematrace API prête sur http://127.0.0.1:${PORT}`);
+app.log.info(`JemaTrace API prête sur http://127.0.0.1:${PORT}`);

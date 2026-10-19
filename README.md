@@ -1,8 +1,8 @@
-# Jematrace
+# JemaTrace
 
 **Visualisez n'importe quel traceroute sur un globe 3D ou une carte 2D.**
 
-Jematrace prend la sortie d'un `traceroute`, `tracert`, `mtr` ou `tracepath` que vous
+JemaTrace prend la sortie d'un `traceroute`, `tracert`, `mtr` ou `tracepath` que vous
 collez, la géolocalise, et dessine le trajet dans l'espace : arcs colorés par vitesse,
 réseau de câbles sous-marins, lumières des villes, 11 apparences.
 
@@ -11,7 +11,7 @@ Aucune sonde, aucun compte, aucune inscription : la mesure vient de **votre** ma
 **Démo en ligne : <https://jematrace.vercel.app>**
 
 <p align="center">
-  <img src="apps/web/public/icon.svg" width="96" alt="Jematrace">
+  <img src="apps/web/public/icon.svg" width="96" alt="JemaTrace">
 </p>
 
 ---
@@ -270,7 +270,7 @@ Le système choisi pour la commande est mémorisé dans `localStorage.gt_os`.
 | ASN | [RIPEstat](https://stat.ripe.net/) | service public |
 | Polices | [Inter](https://rsms.me/inter/), [Manrope](https://manropefont.com/) | SIL OFL 1.1 |
 
-Les câbles TeleGeography sont **non commerciaux** : Jematrace est un projet gratuit et
+Les câbles TeleGeography sont **non commerciaux** : JemaTrace est un projet gratuit et
 sans publicité. Si vous réutilisez ce dépôt à des fins commerciales, remplacez ce jeu de
 données ou obtenez une licence.
 

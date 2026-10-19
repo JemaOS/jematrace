@@ -1,5 +1,5 @@
 /**
- * API Jematrace — mode « coller un traceroute ».
+ * API JemaTrace — mode « coller un traceroute ».
  *
  * L'utilisateur fournit la sortie de son propre traceroute.
  * Le serveur parse → enrichit (rDNS, ASN, géolocalisation) → calcule les
@@ -242,7 +242,7 @@ app.get<{ Params: { id: string } }>('/s/:id', async (request, reply) => {
   const id = request.params.id;
   if (!shares.has(id)) return reply.code(404).type('text/html').send('<h1>Trac� introuvable</h1>');
   return reply.type('text/html').send(
-    `<!doctype html><meta http-equiv="refresh" content="0;url=/?share=${id}"><title>Jematrace</title>`,
+    `<!doctype html><meta http-equiv="refresh" content="0;url=/?share=${id}"><title>JemaTrace</title>`,
   );
 });
 

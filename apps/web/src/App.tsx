@@ -545,7 +545,7 @@ export default function App() {
       return (
         <div className="app">
           <div className="brand">
-            Jema<span>trace</span>
+            Jema<span>Trace</span>
           </div>
           <Loading
             target={booting ? DEMO_TARGET : guessTarget(lastText)}
@@ -557,7 +557,7 @@ export default function App() {
     return (
       <div className="app">
         <button className="brand" onClick={goHome} title="Retour à l'accueil">
-          Jema<span>trace</span>
+          Jema<span>Trace</span>
         </button>
         <PasteView onSubmit={run} busy={busy} error={error} initialText={lastText} />
       </div>
@@ -584,7 +584,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <button className="brand inline-brand" onClick={goHome} title="Retour à l'accueil">
-          Jema<span>trace</span>
+          Jema<span>Trace</span>
         </button>
         {/* Langue et navigation forment un seul bloc à droite : séparées, le
             `space-between` du bandeau plaçait le sélecteur au milieu. */}
