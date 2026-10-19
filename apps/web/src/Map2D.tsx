@@ -2,7 +2,6 @@ import L from 'leaflet';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { InspectHop } from './api';
-import { loadCableTimeline, yearOf, type CableTimeline } from './timeline';
 import type { Basemap, Look } from './looks';
 import { loadWorld, type WorldData } from './world';
 
@@ -190,7 +189,14 @@ function makeIcon(index: number, isFirst: boolean, isLast: boolean): L.DivIcon {
 }
 
 interface CableFile {
-  cables?: Array<{ name: string; points: Array<[number, number]> }>;
+  minYear?: number;
+  maxYear?: number;
+  cables?: Array<{
+    name: string;
+    year: number;
+    end: number | null;
+    lines: Array<Array<[number, number]>>;
+  }>;
   landings?: Array<{ lat: number; lon: number }>;
 }
 
@@ -225,6 +231,14 @@ export function Map2D({
   const batchesRef = useRef<Array<[number, L.Layer[]]>>([]);
   const displayedRef = useRef(0);
   const applyYearRef = useRef<(() => void) | null>(null);
+  /**
+   * Un câble est visible entre sa mise en service et son retrait. On garde donc
+   * la liste complète avec ses bornes : changer d'année n'ajoute ou ne retire
+   * que les câbles dont l'état change (les deltas), sans rien reconstruire.
+   */
+  const cablesRef = useRef<
+    Array<{ year: number; end: number | null; layers: L.Layer[]; visible: boolean }>
+  >([]);
   const [toast, setToast] = useState(true);
 
   useEffect(() => {
@@ -448,44 +462,50 @@ export function Map2D({
     let alive = true;
 
     /**
-     * Un lot par année de mise en service, du plus ancien au plus récent.
-     * Afficher une année revient à ajouter (ou retirer) les lots concernés :
-     * rejouer la frise ne recrée jamais 1 900 polylignes, seuls les deltas
-     * sont manipulés.
+    /**
+     * Un câble est dessiné une fois, puis simplement ajouté ou retiré selon
+     * l'année : on ne reconstruit jamais les 706 câbles pendant la lecture.
+     * `visible` mémorise l'état pour ne toucher que les deltas.
      */
-    const draw = (data: CableFile, timeline: CableTimeline | null) => {
+    const draw = (data: CableFile) => {
       if (!alive || !mapRef.current) return;
       group.clearLayers();
-      displayedRef.current = 0;
 
-      const batches = new Map<number, L.Layer[]>();
+      const entries: typeof cablesRef.current = [];
       for (const cable of data.cables ?? []) {
-        const year = yearOf(timeline, cable.name);
-        for (const segment of splitAtAntimeridian(cable.points)) {
-          if (segment.length < 2) continue;
-          const layers = createCable(
-            segment.map(([lon, lat]) => [lat, lon] as [number, number]),
-            cable.name,
-            look.basemap.cable,
-            renderer,
-            onCable,
-          );
-          const bucket = batches.get(year) ?? [];
-          bucket.push(...layers);
-          batches.set(year, bucket);
+        const layers: L.Layer[] = [];
+        for (const line of cable.lines) {
+          for (const segment of splitAtAntimeridian(line)) {
+            if (segment.length < 2) continue;
+            layers.push(
+              ...createCable(
+                segment.map(([lon, lat]) => [lat, lon] as [number, number]),
+                cable.name,
+                look.basemap.cable,
+                renderer,
+                onCable,
+              ),
+            );
+          }
+        }
+        if (layers.length > 0) {
+          entries.push({ year: cable.year, end: cable.end, layers, visible: false });
         }
       }
 
-      batchesRef.current = [...batches.entries()].sort((a, b) => a[0] - b[0]);
+      cablesRef.current = entries;
       applyYearRef.current?.();
     };
 
-    void Promise.all([loadCableTimeline().catch(() => null), cableDataRef.current ? Promise.resolve(cableDataRef.current) : fetch('/world/cables.geo.json').then(async (res) => (res.ok ? ((await res.json()) as CableFile) : { cables: [], landings: [] }))])
-      .then(([timeline, data]) => {
+    void (cableDataRef.current
+      ? Promise.resolve(cableDataRef.current)
+      : fetch('/world/cables.geo.json').then(async (res) =>
+          res.ok ? ((await res.json()) as CableFile) : { cables: [], landings: [] },
+        )
+    )
+      .then((data) => {
         cableDataRef.current = data;
-
-
-        draw(data, timeline);
+        draw(data);
       })
       .catch(() => {});
 
@@ -495,26 +515,26 @@ export function Map2D({
   }, [look, onCable]);
 
   /**
-   * Applique l'année courante. `displayedRef` mémorise combien de lots sont
-   * posés : on n'ajoute que les années franchies, on ne retire que celles
-   * quittées.
+   * Applique l'année courante : un câble est visible de sa mise en service à
+   * son retrait (les câbles retirés — télégraphe du XIXe — disparaissent).
    */
   const applyYear = useCallback(() => {
     const group = cableRef.current;
     if (!group) return;
-    const batches = batchesRef.current;
-    const target = year;
 
-    let shown = displayedRef.current;
-    while (shown < batches.length && batches[shown]![0] <= target) {
-      for (const layer of batches[shown]![1]) (layer as L.Polyline).addTo(group);
-      shown += 1;
+    for (const cable of cablesRef.current) {
+      // `end >= year` : un câble retiré l'année même de sa mise en service
+      // (le transatlantique de 1858, hors service en trois semaines) doit
+      // apparaître pendant cette année-là.
+      const want = cable.year <= year && (cable.end === null || cable.end >= year);
+      if (want === cable.visible) continue;
+      if (want) {
+        for (const layer of cable.layers) (layer as L.Polyline).addTo(group);
+      } else {
+        for (const layer of cable.layers) group.removeLayer(layer);
+      }
+      cable.visible = want;
     }
-    while (shown > 0 && batches[shown - 1]![0] > target) {
-      shown -= 1;
-      for (const layer of batches[shown]![1]) group.removeLayer(layer);
-    }
-    displayedRef.current = shown;
   }, [year]);
 
   applyYearRef.current = applyYear;

@@ -17,7 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -b",
-    "build": "node tools/fetch-geoip.mjs && tsc -b && npm run build -w @jematrace/web && node tools/build-api.mjs && node tools/vercel-static.mjs",
+    "build": "node tools/fetch-cables-history.mjs && node tools/fetch-geoip.mjs && tsc -b && npm run build -w @jematrace/web && node tools/build-api.mjs && node tools/vercel-static.mjs",
     "clean": "tsc -b --clean"
   },
   "devDependencies": {

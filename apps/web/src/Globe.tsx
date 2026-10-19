@@ -7,7 +7,6 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { InspectHop } from './api';
 import { buildEarthTexture, earthTextureWidth } from './earthTexture';
 import type { Look } from './looks';
-import { useCableTimeline, yearOf } from './timeline';
 import { loadCables, loadCities, loadWorld, type CableWorld, type CityPoint, type WorldData } from './world';
 
 /** Rayon du globe, comme l'original. */
@@ -279,7 +278,6 @@ function CityDots({ count }: { count: number }) {
 
 function CableLayer({ year }: { year: number }) {
   const [data, setData] = useState<CableWorld | null>(null);
-  const timeline = useCableTimeline();
   const geometryRef = useRef<THREE.BufferGeometry | null>(null);
 
   useEffect(() => {
@@ -293,72 +291,105 @@ function CableLayer({ year }: { year: number }) {
   }, []);
 
   /**
-   * Géométrie unique (un seul appel de dessin), **triée par année de mise en
-   * service**. On mémorise, pour chaque année, le nombre de sommets cumulés :
-   * afficher une époque revient alors à un simple `setDrawRange`, sans
-   * reconstruire la géométrie (14 000 points). C'est ce qui rend la frise
-   * fluide même sur mobile.
+   * Géométrie unique, **triée par année de mise en service**, et un lot par
+   * année de retrait.
+   *
+   * Les câbles encore en service sont dessinés par `setDrawRange` (un seul
+   * appel de dessin, aucun upload pendant la lecture) ; les câbles retirés —
+   * surtout le télégraphe du XIXe — sont dans un petit `lineSegments` par année
+   * de retrait, qu'on masque d'un booléen. On respecte ainsi l'histoire sans
+   * reconstruire 90 000 points à chaque année.
    */
-  const { lineGeometry, cumulative } = useMemo(() => {
+  const { lineGeometry, cumulative, retired } = useMemo(() => {
     if (!data || data.cables.length === 0) {
-      return { lineGeometry: null, cumulative: [] as Array<{ year: number; count: number }> };
+      return {
+        lineGeometry: null,
+        cumulative: [] as Array<{ year: number; count: number }>,
+        retired: [] as Array<{ end: number; geometry: THREE.BufferGeometry }>,
+      };
     }
 
-    const sorted = [...data.cables].sort(
-      (a, b) => yearOf(timeline, a.name) - yearOf(timeline, b.name),
-    );
+    const addCable = (positions: number[], cable: CableWorld['cables'][number]) => {
+      for (const line of cable.lines) {
+        for (let i = 1; i < line.length; i++) {
+          const a = line[i - 1]!;
+          const b = line[i]!;
+          if ((a[0] === 0 && a[1] === 0) || (b[0] === 0 && b[1] === 0)) continue;
+
+          // Interpolation sur la sphère : sans ça, deux points éloignés sont
+          // reliés par une corde droite qui traverse l'océan.
+          const va = latLonToVec3(a[1]!, a[0]!, 1);
+          const vb = latLonToVec3(b[1]!, b[0]!, 1);
+          const omega = Math.acos(Math.min(1, Math.max(-1, va.dot(vb))));
+          const steps = Math.max(1, Math.min(16, Math.ceil((omega / Math.PI) * 32)));
+          const so = Math.sin(omega) || 1e-6;
+          for (let s = 0; s < steps; s++) {
+            for (const t of [s / steps, (s + 1) / steps]) {
+              const k0 = Math.sin((1 - t) * omega) / so;
+              const k1 = Math.sin(t * omega) / so;
+              const x = va.x * k0 + vb.x * k1;
+              const y = va.y * k0 + vb.y * k1;
+              const z = va.z * k0 + vb.z * k1;
+              const len = Math.hypot(x, y, z) || 1;
+              const rr = R + 0.4;
+              positions.push((x / len) * rr, (y / len) * rr, (z / len) * rr);
+            }
+          }
+        }
+      }
+    };
+
+    const active = data.cables
+      .filter((c) => c.end === null)
+      .sort((a, b) => a.year - b.year);
 
     const positions: number[] = [];
     const cumulative: Array<{ year: number; count: number }> = [];
     let lastYear = Number.NaN;
 
-    for (const cable of sorted) {
-      const cableYear = yearOf(timeline, cable.name);
-      for (let i = 1; i < cable.points.length; i++) {
-        const a = cable.points[i - 1]!;
-        const b = cable.points[i]!;
-        // Ignore le point (0,0).
-        if ((a[0] === 0 && a[1] === 0) || (b[0] === 0 && b[1] === 0)) continue;
-
-        // Interpolation sur la sphere : sans ca, deux points eloignes sont
-        // relies par une corde droite qui traverse l'ocean.
-        const va = latLonToVec3(a[1]!, a[0]!, 1);
-        const vb = latLonToVec3(b[1]!, b[0]!, 1);
-        const omega = Math.acos(Math.min(1, Math.max(-1, va.dot(vb))));
-        const steps = Math.max(1, Math.min(16, Math.ceil((omega / Math.PI) * 32)));
-        const so = Math.sin(omega) || 1e-6;
-        for (let s = 0; s < steps; s++) {
-          for (const t of [s / steps, (s + 1) / steps]) {
-            const k0 = Math.sin((1 - t) * omega) / so;
-            const k1 = Math.sin(t * omega) / so;
-            const x = va.x * k0 + vb.x * k1;
-            const y = va.y * k0 + vb.y * k1;
-            const z = va.z * k0 + vb.z * k1;
-            const len = Math.hypot(x, y, z) || 1;
-            const rr = R + 0.4;
-            positions.push((x / len) * rr, (y / len) * rr, (z / len) * rr);
-          }
-        }
-      }
-
-      if (cableYear !== lastYear) {
-        cumulative.push({ year: cableYear, count: positions.length / 3 });
-        lastYear = cableYear;
+    for (const cable of active) {
+      addCable(positions, cable);
+      if (cable.year !== lastYear) {
+        cumulative.push({ year: cable.year, count: positions.length / 3 });
+        lastYear = cable.year;
       } else {
         cumulative[cumulative.length - 1]!.count = positions.length / 3;
       }
     }
 
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    return { lineGeometry: g, cumulative };
-  }, [data, timeline]);
+    const lineGeometry = new THREE.BufferGeometry();
+    lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+
+    const byEnd = new Map<number, number[]>();
+    for (const cable of data.cables) {
+      if (cable.end === null) continue;
+      const bucket = byEnd.get(cable.end) ?? [];
+      addCable(bucket, cable);
+      byEnd.set(cable.end, bucket);
+    }
+
+    const retired = [...byEnd.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([end, pts]) => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+        return { end, geometry: g };
+      });
+
+    return { lineGeometry, cumulative, retired };
+  }, [data]);
 
   useEffect(() => {
     geometryRef.current = lineGeometry;
     if (!lineGeometry) return;
     return () => lineGeometry.dispose();
   }, [lineGeometry]);
+
+  useEffect(() => {
+    return () => {
+      for (const item of retired) item.geometry.dispose();
+    };
+  }, [retired]);
 
   // Année courante → nombre de sommets à dessiner.
   useEffect(() => {
@@ -386,6 +417,18 @@ function CableLayer({ year }: { year: number }) {
           />
         </lineSegments>
       )}
+      {retired.map((item) => (
+        <lineSegments key={item.end} geometry={item.geometry} visible={year <= item.end}>
+          <lineBasicMaterial
+            color={0x2a5e94}
+            transparent
+            opacity={0.14}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </lineSegments>
+      ))}
     </>
   );
 }
@@ -407,12 +450,17 @@ function CableParticles() {
   }, []);
 
   const state = useMemo(() => {
-    const cables = (data?.cables ?? []).filter((c) => c.points.length > 1);
+    // Un point de départ par câble : on suit sa première ligne, la plus longue,
+    // pour que la particule parcoure bien tout le tracé.
+    const cables = (data?.cables ?? []).filter((c) => c.lines.length > 0);
     if (cables.length === 0) return { items: [], positions: new Float32Array(0) };
     const items = Array.from({ length: N }, () => {
       const cable = cables[Math.floor(Math.random() * cables.length)]!;
+      // La ligne la plus longue du câble : la particule parcourt ainsi tout
+      // le tracé, et non un tronçon secondaire.
+      const points = cable.lines.reduce((best, l) => (l.length > best.length ? l : best), cable.lines[0]!);
       return {
-        cable,
+        points,
         t: Math.random(),
         speed: 0.05 + Math.random() * 0.12,
       };
@@ -429,7 +477,7 @@ function CableParticles() {
       item.t += delta * item.speed;
       if (item.t > 1) item.t -= 1;
 
-      const pts = item.cable.points;
+      const pts = item.points;
       const f = item.t * (pts.length - 1);
       const i0 = Math.floor(f);
       const i1 = Math.min(pts.length - 1, i0 + 1);

@@ -11,7 +11,16 @@ export interface WorldData {
 
 export interface CableLine {
   name: string;
-  points: Array<[number, number]>;
+  /** Année de mise en service (1858 pour le premier câble transatlantique). */
+  year: number;
+  /** Année de retrait, ou `null` si le câble est toujours en service. */
+  end: number | null;
+  /**
+   * Tronçons `[lon, lat]`. Un câble peut être découpé en plusieurs lignes
+   * (MultiLineString) : le premier câble transatlantique de 1858 en a une,
+   * certains câbles modernes plusieurs dizaines.
+   */
+  lines: Array<Array<[number, number]>>;
 }
 
 export interface CableLanding {

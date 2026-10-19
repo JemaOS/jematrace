@@ -33,16 +33,16 @@ export function loadCableTimeline(): Promise<CableTimeline> {
     let max = 0;
 
     for (const [name, info] of Object.entries(all)) {
-      if (!info.rfsYear || info.rfsYear < 1900) continue;
-      years.set(name, info.rfsYear);
-      min = Math.min(min, info.rfsYear);
-      max = Math.max(max, info.rfsYear);
+      if (!info.year || info.year < 1800) continue;
+      years.set(name, info.year);
+      min = Math.min(min, info.year);
+      max = Math.max(max, info.year);
     }
 
     const now = new Date().getFullYear();
     const timeline: CableTimeline = {
       years,
-      min: Number.isFinite(min) ? min : 1989,
+      min: Number.isFinite(min) ? min : 1858,
       // Les câbles « prévus » (2027+) ne doivent pas apparaître avant l'heure.
       max: Math.min(now, max || now),
     };
@@ -91,7 +91,7 @@ export interface TimelineState {
 }
 
 /** Intervalle entre deux années pendant la lecture (ms). */
-const FRAME_MS = 320;
+const FRAME_MS = 400;
 
 export function useTimeline(): TimelineState {
   const [timeline, setTimeline] = useState<CableTimeline | null>(cache);
@@ -192,4 +192,38 @@ export function useTimeline(): TimelineState {
     first,
     last,
   };
+}
+/* ------------------------------------------------------------- récits annuels */
+
+export type YearSummaries = Record<string, { description?: string }>;
+
+let summariesCache: YearSummaries | null = null;
+let summariesLoading: Promise<YearSummaries> | null = null;
+
+/** Récits année par année (61 années documentées, de 1858 à aujourd'hui). */
+export function loadYearSummaries(): Promise<YearSummaries> {
+  if (summariesCache) return Promise.resolve(summariesCache);
+  summariesLoading ??= fetch('/world/year-summaries.json')
+    .then(async (res) => (res.ok ? ((await res.json()) as YearSummaries) : {}))
+    .catch(() => ({}))
+    .then((data) => {
+      summariesCache = data;
+      return data;
+    });
+  return summariesLoading;
+}
+
+/** Récit de l'année courante, ou `null`. */
+export function useYearSummary(year: number): string | null {
+  const [summaries, setSummaries] = useState<YearSummaries | null>(summariesCache);
+  useEffect(() => {
+    let alive = true;
+    void loadYearSummaries().then((data) => {
+      if (alive) setSummaries(data);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  return summaries?.[String(year)]?.description ?? null;
 }

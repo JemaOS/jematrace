@@ -43,7 +43,8 @@ Aucune sonde, aucun compte, aucune inscription : la mesure vient de **votre** ma
 - **Thème clair ou sombre** pour toute l'interface, mémorisé et appliqué avant le
   premier rendu (aucun flash).
 - **Frise de l'histoire du réseau** : lecture année par année depuis le premier
-  câble (1989) jusqu'au réseau actuel, sur le globe **et** la carte 2D.
+  câble transatlantique (**1858**) jusqu'au réseau actuel, sur le globe **et** la
+  carte 2D, avec le récit de chaque année documentée.
 - **11 apparences** : Vectoriel, Noir, Noir + Frontières, Atlas, Atlas + Frontières, Nuit,
   Nuit + Frontières, Soleil, Soleil + Frontières, Jour/Nuit, Jour/Nuit + Frontières.
 - **Deux modes de tracé** : **Topo** (la route suit les câbles sous-marins) et **Ligne**
@@ -268,7 +269,7 @@ Le système choisi pour la commande est mémorisé dans `localStorage.gt_os`.
 |---|---|---|
 | Contours et villes du monde | [Natural Earth](https://www.naturalearthdata.com/) 110m | domaine public |
 | Géolocalisation IP | [DB-IP City Lite](https://db-ip.com/db/lite.php) | CC BY 4.0 (attribution) |
-| Câbles sous-marins | [TeleGeography](https://www.submarinecablemap.com/) | CC BY-NC-SA 4.0 — **usage non commercial** |
+| Câbles sous-marins (1858 → aujourd'hui) | [kmcd.dev](https://map.kmcd.dev) — TeleGeography, SubmarineNetworks, cartes d'archives | CC BY-NC-SA 4.0 — **usage non commercial** |
 | Lumières nocturnes 2D | [NASA GIBS](https://earthdata.nasa.gov/gibs) (VIIRS) | domaine public |
 | Fond de carte 2D | [OpenStreetMap](https://www.openstreetmap.org/copyright) | ODbL |
 | DNS inverse | Cloudflare DoH | service public |

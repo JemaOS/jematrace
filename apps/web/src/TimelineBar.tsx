@@ -1,5 +1,5 @@
 import { useT } from './i18n';
-import type { TimelineState } from './timeline';
+import { useYearSummary, type TimelineState } from './timeline';
 
 /**
  * Barre de lecture de l'histoire du réseau sous-marin.
@@ -11,13 +11,18 @@ import type { TimelineState } from './timeline';
  */
 export function TimelineBar({ timeline }: { timeline: TimelineState }) {
   const { t } = useT();
+  const summary = useYearSummary(timeline.year);
   if (!timeline.ready) return null;
 
   const { year, min, max, playing, atEnd } = timeline;
   const progress = max > min ? ((year - min) / (max - min)) * 100 : 100;
 
   return (
-    <div className="timeline" role="group" aria-label={t('timeline.label')}>
+    <div className="timeline-stack">
+      {/* Récit de l'année : même principe que la carte de référence. */}
+      {summary && <p className="timeline-story">{summary}</p>}
+
+      <div className="timeline" role="group" aria-label={t('timeline.label')}>
       <div className="timeline-track" aria-hidden="true">
         <span className="timeline-progress" style={{ width: `${progress}%` }} />
       </div>
@@ -69,6 +74,7 @@ export function TimelineBar({ timeline }: { timeline: TimelineState }) {
         <output className={atEnd ? 'tl-year end' : 'tl-year'} aria-live="polite">
           {year}
         </output>
+      </div>
       </div>
     </div>
   );

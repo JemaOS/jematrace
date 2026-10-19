@@ -23,7 +23,7 @@ export function CableModal({ name, onClose }: { name: string; onClose: () => voi
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const planned = info?.rfsYear ? info.rfsYear > new Date().getFullYear() : false;
+  const planned = info ? info.year > new Date().getFullYear() : false;
 
   return (
     <div className="overlay" onClick={onClose} role="presentation">
@@ -93,7 +93,7 @@ export function CableModal({ name, onClose }: { name: string; onClose: () => voi
                 </>
               )}
 
-              {info.notes && <p className="cable-notes">{info.notes}</p>}
+              {info.description && <p className="cable-notes">{info.description}</p>}
 
               <div className="cable-foot">
                 {info.url && (

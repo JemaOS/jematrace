@@ -19,16 +19,20 @@ export interface CableLanding {
 }
 
 export interface CableInfo {
-  id: string;
   name: string;
+  /** Année de mise en service (1858 pour le premier câble transatlantique). */
+  year: number;
+  /** Année de retrait, ou 
+ull si le câble est toujours en service. */
+  end: number | null;
   length: string | null;
+  capacity: string | null;
   owners: string | null;
   suppliers: string | null;
   rfs: string | null;
-  rfsYear: number | null;
-  landingPoints: CableLanding[];
   url: string | null;
-  notes: string | null;
+  description: string | null;
+  landingPoints: CableLanding[];
 }
 
 export type CableMetaFile = Record<string, CableInfo>;
