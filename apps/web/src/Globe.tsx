@@ -472,7 +472,18 @@ function CableLayer({ year, light }: { year: number; light: boolean }) {
 }
 
 /** Particules qui circulent le long des c�bles sous-marins. */
-function CableParticles() {
+/**
+ * Particules qui parcourent les câbles.
+ *
+ * Deux précautions indispensables :
+ *  - elles ne voyagent que sur les câbles **visibles à l'année affichée** ;
+ *    sinon on voyait des points lumineux dans l'océan, sur des câbles qui
+ *    n'existaient pas encore (ou déjà retirés) ;
+ *  - la position est interpolée **sur la sphère** entre deux points du tracé :
+ *    une interpolation en longitude traverse la planète d'un bord à l'autre
+ *    quand le câble franchit l'antiméridien.
+ */
+function CableParticles({ year }: { year: number }) {
   const [data, setData] = useState<CableWorld | null>(null);
   const attrRef = useRef<THREE.BufferAttribute | null>(null);
   const N = 600;
@@ -504,7 +515,7 @@ function CableParticles() {
       };
     });
     return { items, positions: new Float32Array(N * 3) };
-  }, [data]);
+  }, [data, year]);
 
   useFrame((_, delta) => {
     const attr = attrRef.current;
@@ -522,15 +533,16 @@ function CableParticles() {
       const k = f - i0;
       const a = pts[i0]!;
       const b = pts[i1]!;
-      const lon = a[0] + (b[0] - a[0]) * k;
-      const lat = a[1] + (b[1] - a[1]) * k;
 
-      const phi = (90 - lat) * DEG;
-      const theta = (lon + 180) * DEG;
-      const r = R + 1.5;
-      arr[i * 3] = -r * Math.sin(phi) * Math.cos(theta);
-      arr[i * 3 + 1] = r * Math.cos(phi);
-      arr[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+      // Interpolation sphérique : correcte même au passage de l'antiméridien.
+      // Une interpolation en longitude traverserait la planète d'un bord à
+      // l'autre et poserait la particule au milieu de l'océan.
+      const va = latLonToVec3(a[1]!, a[0]!, 1);
+      const vb = latLonToVec3(b[1]!, b[0]!, 1);
+      const p = va.clone().lerp(vb, k).normalize().multiplyScalar(R + 0.7);
+      arr[i * 3] = p.x;
+      arr[i * 3 + 1] = p.y;
+      arr[i * 3 + 2] = p.z;
     });
 
     attr.needsUpdate = true;
@@ -1142,7 +1154,7 @@ function Scene({ hops, look, showCities, showCables, world, year, focusPoint, li
             <CableLayer year={year} light={light} />
             {/* Particules circulant sur les câbles : mouvement continu, donc
                 coupé sur mobile pour alléger le GPU. */}
-            {wide && <CableParticles />}
+            {wide && <CableParticles year={year} />}
           </>
         )}
         {showCities && <CityDots count={1251} />}
