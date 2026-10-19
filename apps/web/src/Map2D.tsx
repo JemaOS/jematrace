@@ -613,6 +613,21 @@ export function Map2D({
 
   applyYearRef.current = applyYear;
 
+  /**
+   * Sécurité : si le curseur quitte la carte (ou pendant un zoom), le survol
+   * est réinitialisé. Sans cela, un câble pouvait rester blanc alors que la
+   * souris n'était plus dessus.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const clear = () => setHoveredCable(null);
+    map.on('mouseout zoomstart movestart', clear);
+    return () => {
+      map.off('mouseout zoomstart movestart', clear);
+    };
+  }, []);
+
   useEffect(() => {
     applyYear();
   }, [applyYear]);
