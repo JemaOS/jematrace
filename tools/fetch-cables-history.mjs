@@ -109,9 +109,19 @@ for (const feature of features) {
       rfs: p.rfs_year ? String(p.rfs_year) : null,
       url: p.url ?? null,
       description: p.description ?? null,
+      // Coordonnées conservées : la fiche permet de survoler un atterrissage.
       landingPoints: Array.isArray(p.landing_points)
-        ? p.landing_points.map((lp) => ({ name: lp.name, country: lp.country ?? null }))
+        ? p.landing_points
+            .filter((lp) => lp && lp.name)
+            .map((lp) => ({
+              name: lp.name,
+              country: lp.country ?? null,
+              lat: Number.isFinite(lp.lat) ? Number(lp.lat) : null,
+              lon: Number.isFinite(lp.lng) ? Number(lp.lng) : null,
+            }))
         : [],
+      /** Technologie : 	ype fourni par la source, sinon déduit de l'année. */
+      technology: p.type ?? null,
     };
   }
 

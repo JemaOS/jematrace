@@ -340,6 +340,12 @@ export default function App() {
   const [modal, setModal] = useState<'prefs' | 'method' | 'credits' | 'contact' | null>(null);
   /** Nom du câble dont la fiche est ouverte (clic sur un câble en 2D). */
   const [cableName, setCableName] = useState<string | null>(null);
+  /**
+   * Point demandé depuis une fiche (atterrissage cliqué) : la carte 2D y vole
+   * et le globe s'y tourne. 
+ull = cadrage normal (traceroute / frise).
+   */
+  const [focusAt, setFocusAt] = useState<{ lat: number; lon: number } | null>(null);
   const [lastText, setLastText] = useState('');
   const [panelOpen, setPanelOpen] = useState(true);
   /** Vrai tant que le resultat affiche est la trace de demonstration. */
@@ -702,7 +708,8 @@ export default function App() {
             year={timeline.year}
             focus={yearFocus}
             light={prefs.theme === 'light'}
-            selected={cableName}
+selected={cableName}
+            at={focusAt}
           />
         ) : (
           <Globe
@@ -715,6 +722,7 @@ export default function App() {
             light={prefs.theme === 'light'}
             selected={cableName}
             onCable={setCableName}
+            at={focusAt}
           />
         )}
         </Suspense>
@@ -823,7 +831,14 @@ export default function App() {
       )}
 
       {/* Fiche d'un câble, ouverte au clic sur son tracé dans la carte 2D. */}
-      {cableName && <CableModal name={cableName} onClose={() => setCableName(null)} />}
+      {cableName && (
+        <CableModal
+          name={cableName}
+          year={timeline.year}
+          onClose={() => setCableName(null)}
+          onLanding={(lat, lon) => setFocusAt({ lat, lon })}
+        />
+      )}
 
     </div>
   );

@@ -737,6 +737,188 @@ button.ghost {
 
 /* --------------------------------------------------------- fiche d'un câble */
 
+/*
+ * Même structure que la carte de référence : sections titrées, lignes
+ * « libellé / valeur », atterrissages en pastilles cliquables, propriétaires
+ * en étiquettes.
+ */
+/* Vignette du tracé, en tête de fiche (comme la carte de référence). */
+.detail-cable-shape {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 74px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 70%, var(--panel));
+}
+
+.detail-cable-shape svg {
+  width: 168px;
+  height: 60px;
+  overflow: visible;
+}
+
+.detail-cable-shape.is-new {
+  border-color: color-mix(in srgb, #ffa500 40%, transparent);
+}
+
+.detail-cable-shape.is-decom {
+  border-color: color-mix(in srgb, #f85149 40%, transparent);
+}
+.detail-section {
+  margin-bottom: 16px;
+}
+
+.detail-section-title {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.detail-description {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.detail-meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.detail-meta-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.detail-meta-row:nth-child(even) {
+  background: color-mix(in srgb, var(--surface) 60%, var(--panel));
+}
+
+.detail-meta-row .meta-label {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.detail-meta-row .meta-value {
+  text-align: right;
+  color: var(--text);
+}
+
+.detail-meta-row .highlight-decom {
+  color: #f85149;
+  font-weight: 600;
+}
+
+/* Pastilles d'atterrissage : cliquables, elles ramènent la carte sur la ville. */
+.detail-pill-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.detail-pill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.detail-pill:hover:not(:disabled),
+.detail-pill:focus-visible:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.detail-pill:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* Propriétaires en étiquettes. */
+.detail-owner-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.owner-tag {
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.owner-tag.owner-more {
+  color: var(--muted);
+}
+
+/* Liens officiels. */
+.detail-links-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.detail-link-btn {
+  padding: 5px 11px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.detail-link-btn:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* Badges d'état dans le titre de la fiche. */
+.cable-modal h3 .badge {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
+
+.cable-modal h3 .badge-decom {
+  color: #f85149;
+  border: 1px solid color-mix(in srgb, #f85149 45%, transparent);
+  background: color-mix(in srgb, #f85149 12%, transparent);
+}
+
+.cable-modal h3 .badge-new {
+  color: #ffa500;
+  border: 1px solid color-mix(in srgb, #ffa500 45%, transparent);
+  background: color-mix(in srgb, #ffa500 12%, transparent);
+}
+
+
 .cable-modal {
   max-width: 480px;
 }
@@ -757,130 +939,13 @@ button.ghost {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
-.cable-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 6px 0 14px;
-}
 
-.cable-badges .badge {
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 12px;
-  border: 1px solid var(--border);
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.cable-badges .badge.live {
-  color: #2ea043;
-  border-color: color-mix(in srgb, #2ea043 45%, transparent);
-  background: color-mix(in srgb, #2ea043 12%, transparent);
-}
-
-.cable-badges .badge.retired {
-  color: #f85149;
-  border-color: color-mix(in srgb, #f85149 45%, transparent);
-  background: color-mix(in srgb, #f85149 12%, transparent);
-}
-
-/* Paragraphe de présentation du câble (description TeleGeography). */
-.cable-intro {
-  margin: 0 0 14px;
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: var(--text);
-}
-
-.cable-badges .badge.planned {
-  color: #d29922;
-  border-color: color-mix(in srgb, #d29922 45%, transparent);
-  background: color-mix(in srgb, #d29922 12%, transparent);
-}
-
-/* Tableau de faits : libellé à gauche, valeur à droite, sans cadre lourd. */
-.cable-facts {
-  display: grid;
-  grid-template-columns: minmax(96px, 34%) 1fr;
-  gap: 6px 14px;
-  margin: 0 0 16px;
-}
-
-.cable-facts dt {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.cable-facts dd {
-  margin: 0;
-  font-size: 14px;
-}
-
-.cable-modal h4 {
-  margin: 0 0 8px;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-  font-weight: 600;
-}
-
-.cable-landings {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 190px;
-  overflow-y: auto;
-}
-
-.cable-landings li {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 9px;
-  border-radius: 6px;
-  background: var(--surface);
-  font-size: 13px;
-}
-
-.cable-landings .lp-country {
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-.cable-notes {
-  margin: 0 0 14px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.cable-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 4px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  font-size: 12px;
-}
-
-.cable-foot a {
-  color: var(--accent);
-  text-decoration: none;
-}
-
-.cable-foot a:hover {
-  text-decoration: underline;
-}
-
+/* Note de source, en pied de fiche. */
 .cable-source {
+  display: block;
+  margin-top: 4px;
   color: var(--muted);
+  font-size: 11.5px;
 }
 
 .cable-unknown,

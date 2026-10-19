@@ -211,6 +211,7 @@ export function Map2D({
   onCable,
   year,
   focus,
+  at = null,
   light = false,
   selected = null,
 }: {
@@ -223,6 +224,8 @@ export function Map2D({
   year: number;
   /** Câbles de l'année : la carte vole vers leur emprise. */
   focus?: YearFocus | null;
+  /** Point demandé depuis une fiche de câble (atterrissage cliqué). */
+  at?: { lat: number; lon: number } | null;
   /** Thème clair : la palette des câbles s'inverse (cf. `cablePalette`). */
   light?: boolean;
   /** Câble ouvert dans la fiche : tracé en blanc. */
@@ -599,6 +602,15 @@ export function Map2D({
    * frise (`navigated`), pour ne pas écraser le cadrage du traceroute à
    * l'ouverture ; et jamais quand le réseau est complet (`focus` = `null`).
    */
+  /**
+   * Point venu d'une fiche (atterrissage cliqué) : priorité absolue, avec un
+   * zoom de ville. On garde la fiche ouverte pour pouvoir en essayer un autre.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !at) return;
+    map.flyTo([at.lat, at.lon], 6, { duration: 1.2 });
+  }, [at]);
   const initialYear = useRef(year);
   const navigated = useRef(false);
   useEffect(() => {

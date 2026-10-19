@@ -1242,9 +1242,11 @@ interface GlobeProps {
   selected?: string | null;
   /** Ouvre la fiche d'un câble au clic sur son tracé. */
   onCable?: (name: string) => void;
+  /** Point demandé depuis une fiche de câble (atterrissage cliqué). */
+  at?: { lat: number; lon: number } | null;
 }
 
-function Scene({ hops, look, showCities, showCables, world, year, focusPoint, light = false, selected = null, onCable, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
+function Scene({ hops, look, showCities, showCables, world, year, focusPoint, light = false, selected = null, onCable, at, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
   const wide = useThree((s) => s.size.width) >= 700;
   const located = useMemo(() => hops.filter((h) => h.lat !== null && h.lon !== null), [hops]);
 
@@ -1255,7 +1257,7 @@ function Scene({ hops, look, showCities, showCables, world, year, focusPoint, li
     if (located.length === 0) return null;
     const sum = located.reduce((acc, h) => acc.add(latLonToVec3(h.lat!, h.lon!, 1)), new THREE.Vector3());
     return sum.divideScalar(located.length);
-  }, [located, focusPoint]);
+  }, [located, focusPoint, at]);
 
   const markers = useMemo(
     () =>
