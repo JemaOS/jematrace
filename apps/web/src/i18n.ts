@@ -87,6 +87,11 @@ const fr = {
   'ctrl.cables': 'Câbles sous-marins',
   'ctrl.look': 'Apparence du globe',
 
+  'legend.cables': 'Câbles sous-marins',
+  'legend.existing': 'Existant',
+  'legend.new': 'Nouveau',
+  'legend.decommissioned': 'Retiré',
+  'legend.selected': 'Sélectionné',
   'legend.title': 'Échelle de latence',
   'legend.slow': 'lent',
   'legend.avg': 'moyen',
@@ -185,6 +190,11 @@ const en: Record<keyof typeof fr, string> = {
   'ctrl.cables': 'Submarine cables',
   'ctrl.look': 'Globe appearance',
 
+  'legend.cables': 'Subsea cables',
+  'legend.existing': 'Existing cable',
+  'legend.new': 'New cable',
+  'legend.decommissioned': 'Decommissioned cable',
+  'legend.selected': 'Selected cable',
   'legend.title': 'Latency scale',
   'legend.slow': 'slow',
   'legend.avg': 'average',

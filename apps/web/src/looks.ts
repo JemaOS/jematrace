@@ -23,6 +23,59 @@ export interface Basemap {
   halo: boolean;
 }
 
+/**
+ * Palette des câbles sous-marins, reprise de la carte de référence
+ * (map.kmcd.dev). Quatre états, chacun avec sa couleur, son opacité et son
+ * épaisseur :
+ *
+ *  - `regular`       : câble déjà en service avant l'année affichée (cyan) ;
+ *  - `isNew`         : mis en service cette année-là (orange) ;
+ *  - `decommissioned`: retiré cette année-là (rouge) ;
+ *  - `selected`      : câble ouvert dans la fiche (blanc).
+ *
+ * Les valeurs diffèrent en thème clair pour rester lisibles sur fond clair.
+ */
+export interface CablePaletteEntry {
+  color: string;
+  opacity: number;
+  weight: number;
+}
+
+export interface CablePalette {
+  regular: CablePaletteEntry;
+  isNew: CablePaletteEntry;
+  decommissioned: CablePaletteEntry;
+  selected: CablePaletteEntry;
+}
+
+export function cablePalette(light: boolean): CablePalette {
+  return light
+    ? {
+        regular: { color: '#00558a', opacity: 0.96, weight: 0.95 },
+        isNew: { color: '#b86505', opacity: 1, weight: 1.5 },
+        decommissioned: { color: '#dc2626', opacity: 0.92, weight: 1.35 },
+        selected: { color: '#0f172a', opacity: 1, weight: 2.2 },
+      }
+    : {
+        regular: { color: '#00f0ff', opacity: 0.7, weight: 0.95 },
+        isNew: { color: '#ffa500', opacity: 1, weight: 1.5 },
+        decommissioned: { color: '#f85149', opacity: 0.85, weight: 1.35 },
+        selected: { color: '#ffffff', opacity: 1, weight: 2.2 },
+      };
+}
+
+/** État d'un câble pour une année donnée. */
+export function cableState(
+  cable: { year: number; end: number | null },
+  year: number,
+  selected: boolean,
+): keyof CablePalette {
+  if (selected) return 'selected';
+  if (cable.end !== null && cable.end <= year) return 'decommissioned';
+  if (cable.year === year) return 'isNew';
+  return 'regular';
+}
+
 export interface Look {
   id: string;
   label: string;

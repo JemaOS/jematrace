@@ -11,7 +11,7 @@ import { guessTarget, Loading } from './Loading';
 import { useT } from './i18n';
 // Globe et carte charges a la demande (chunks separes).
 const Globe = lazy(() => import('./Globe').then((m) => ({ default: m.Globe })));
-import { LOOKS, lookById } from './looks';
+import { cablePalette, LOOKS, lookById, type CablePalette } from './looks';
 const Map2D = lazy(() => import('./Map2D').then((m) => ({ default: m.Map2D })));
 import { Panel, type RecentEntry } from './Panel';
 import { DEFAULT_PREFS, readPrefs, writePrefs, type Prefs, type RouteMode, type Theme } from './prefs';
@@ -701,6 +701,8 @@ export default function App() {
             onCable={setCableName}
             year={timeline.year}
             focus={yearFocus}
+            light={prefs.theme === 'light'}
+            selected={cableName}
           />
         ) : (
           <Globe
@@ -710,6 +712,7 @@ export default function App() {
             showCables={prefs.cables}
             year={timeline.year}
             focusPoint={yearFocus}
+            light={prefs.theme === 'light'}
           />
         )}
         </Suspense>
@@ -755,6 +758,26 @@ export default function App() {
           </select>
         </div>
       </div>
+
+      {/* Légende des câbles : mêmes codes couleur que la carte de référence. */}
+      {prefs.cables && (
+        <div className="cable-legend">
+          <div className="title">{t('legend.cables')}</div>
+          <ul>
+            {[
+              ['regular', t('legend.existing')],
+              ['isNew', t('legend.new')],
+              ['decommissioned', t('legend.decommissioned')],
+              ['selected', t('legend.selected')],
+            ].map(([state, label]) => (
+              <li key={state}>
+                <i style={{ background: cablePalette(prefs.theme === 'light')[state as keyof CablePalette].color }} />
+                {label}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="legend">
         <div className="title">{t('legend.title')}</div>

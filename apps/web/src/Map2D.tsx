@@ -2,7 +2,7 @@ import L from 'leaflet';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { InspectHop } from './api';
-import type { Basemap, Look } from './looks';
+import { cablePalette, cableState, type Basemap, type CablePalette, type Look } from './looks';
 import type { YearFocus } from './timeline';
 import { loadWorld, type WorldData } from './world';
 
@@ -126,51 +126,54 @@ function segmentPaths(from: InspectHop, to: InspectHop): Array<Array<[number, nu
 }
 
 /**
- * Câbles sous-marins : deux traits larges sous le trait net donnent le halo
- * des apparences nocturnes. Le nom s'affiche au survol du trait net, avec la
- * tolérance du moteur de rendu (le réseau compte ~1 900 câbles : il est dessiné
- * sur un canevas, pas en SVG, pour rester fluide).
+ * Câble sous-marin : un trait net, dont la couleur dépend de son état pour
+ * l'année affichée (existant, nouveau, retiré, sélectionné), plus une zone de
+ * survol invisible qui porte le nom. Tout est dessiné sur un canevas : le
+ * réseau compte plusieurs centaines de câbles.
  */
 function createCable(
   path: Array<[number, number]>,
   name: string,
-  cable: Basemap['cable'],
   renderer: L.Canvas,
+  palette: CablePalette,
+  state: keyof CablePalette,
   onSelect?: (name: string) => void,
-): L.Layer[] {
-  const base = { pane: CABLE_PANE, renderer, interactive: false as const, smoothFactor: 1.6 };
-  const layers: L.Layer[] = [];
-
-  if (cable.glow) {
-    layers.push(L.polyline(path, { ...base, color: cable.glow, weight: cable.weight * 5, opacity: 0.12 }));
-    layers.push(L.polyline(path, { ...base, color: cable.glow, weight: cable.weight * 2.5, opacity: 0.24 }));
-  }
+): { line: L.Polyline; hit: L.Polyline } {
+  const style = palette[state];
 
   const line = L.polyline(path, {
     pane: CABLE_PANE,
     renderer,
     smoothFactor: 1.6,
-    color: cable.color,
-    weight: cable.weight,
-    opacity: cable.glow ? 0.92 : 0.62,
+    color: style.color,
+    weight: style.weight,
+    opacity: style.opacity,
+    interactive: false,
+  });
+
+  // Zone de survol large et transparente : le nom s'affiche sans viser au pixel.
+  const hit = L.polyline(path, {
+    pane: CABLE_PANE,
+    renderer,
+    smoothFactor: 1.6,
+    color: '#000000',
+    weight: 12,
+    opacity: 0,
   }).bindTooltip(name, { className: 'cable-tooltip', sticky: true });
 
   if (onSelect) {
-    line.on('click', () => onSelect(name));
-    // Curseur « main » sur le tracé. Le canevas est le conteneur du moteur de
-    // rendu ; `getPane()` renvoie la zone où il est monté.
-    line.on('mouseover', () => {
+    hit.on('click', () => onSelect(name));
+    hit.on('mouseover', () => {
       const pane = renderer.getPane?.();
       if (pane) pane.style.cursor = 'pointer';
     });
-    line.on('mouseout', () => {
+    hit.on('mouseout', () => {
       const pane = renderer.getPane?.();
       if (pane) pane.style.cursor = '';
     });
   }
 
-  layers.push(line);
-  return layers;
+  return { line, hit };
 }
 
 /** Marqueur numéroté, aux couleurs et tailles du site. */
@@ -208,6 +211,8 @@ export function Map2D({
   onCable,
   year,
   focus,
+  light = false,
+  selected = null,
 }: {
   hops: InspectHop[];
   showCables: boolean;
@@ -218,6 +223,10 @@ export function Map2D({
   year: number;
   /** Câbles de l'année : la carte vole vers leur emprise. */
   focus?: YearFocus | null;
+  /** Thème clair : la palette des câbles s'inverse (cf. `cablePalette`). */
+  light?: boolean;
+  /** Câble ouvert dans la fiche : tracé en blanc. */
+  selected?: string | null;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -240,8 +249,23 @@ export function Map2D({
    * la liste complète avec ses bornes : changer d'année n'ajoute ou ne retire
    * que les câbles dont l'état change (les deltas), sans rien reconstruire.
    */
+  /** Année et câble sélectionné, lus par le dessin sans relancer sa construction. */
+  const yearRef = useRef(year);
+  yearRef.current = year;
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+
   const cablesRef = useRef<
-    Array<{ year: number; end: number | null; layers: L.Layer[]; visible: boolean }>
+    Array<{
+      name: string;
+      year: number;
+      end: number | null;
+      layers: L.Layer[];
+      /** Traits visibles, seuls à porter la couleur de l'état. */
+      lines: L.Polyline[];
+      visible: boolean;
+      state: keyof CablePalette;
+    }>
   >([]);
   const [toast, setToast] = useState(true);
 
@@ -475,25 +499,30 @@ export function Map2D({
       if (!alive || !mapRef.current) return;
       group.clearLayers();
 
+      const palette = cablePalette(light);
       const entries: typeof cablesRef.current = [];
+
       for (const cable of data.cables ?? []) {
         const layers: L.Layer[] = [];
+        const lines: L.Polyline[] = [];
+        const state = cableState(cable, yearRef.current, cable.name === selectedRef.current);
         for (const line of cable.lines) {
           for (const segment of splitAtAntimeridian(line)) {
             if (segment.length < 2) continue;
-            layers.push(
-              ...createCable(
-                segment.map(([lon, lat]) => [lat, lon] as [number, number]),
-                cable.name,
-                look.basemap.cable,
-                renderer,
-                onCable,
-              ),
+            const created = createCable(
+              segment.map(([lon, lat]) => [lat, lon] as [number, number]),
+              cable.name,
+              renderer,
+              palette,
+              state,
+              onCable,
             );
+            layers.push(created.line, created.hit);
+            lines.push(created.line);
           }
         }
         if (layers.length > 0) {
-          entries.push({ year: cable.year, end: cable.end, layers, visible: false });
+          entries.push({ name: cable.name, year: cable.year, end: cable.end, layers, lines, visible: false, state });
         }
       }
 
@@ -516,7 +545,9 @@ export function Map2D({
     return () => {
       alive = false;
     };
-  }, [look, onCable]);
+    // Volontairement sans year ni selected : la visibilité et la couleur sont
+    // appliquées par pplyYear, sans reconstruire les centaines de tracés.
+  }, [light, onCable]);
 
   /**
    * Applique l'année courante : un câble est visible de sa mise en service à
@@ -525,21 +556,36 @@ export function Map2D({
   const applyYear = useCallback(() => {
     const group = cableRef.current;
     if (!group) return;
+    const palette = cablePalette(light);
 
     for (const cable of cablesRef.current) {
       // `end >= year` : un câble retiré l'année même de sa mise en service
       // (le transatlantique de 1858, hors service en trois semaines) doit
       // apparaître pendant cette année-là.
       const want = cable.year <= year && (cable.end === null || cable.end >= year);
-      if (want === cable.visible) continue;
-      if (want) {
-        for (const layer of cable.layers) (layer as L.Polyline).addTo(group);
-      } else {
-        for (const layer of cable.layers) group.removeLayer(layer);
+
+      if (want !== cable.visible) {
+        if (want) {
+          for (const layer of cable.layers) (layer as L.Polyline).addTo(group);
+        } else {
+          for (const layer of cable.layers) group.removeLayer(layer);
+        }
+        cable.visible = want;
       }
-      cable.visible = want;
+
+      // Couleur de l'état : existant, nouveau (cette année), retiré, sélectionné.
+      if (want) {
+        const state = cableState(cable, yearRef.current, cable.name === selectedRef.current);
+        if (state !== cable.state) {
+          const style = palette[state];
+          for (const line of cable.lines) {
+            line.setStyle({ color: style.color, weight: style.weight, opacity: style.opacity });
+          }
+          cable.state = state;
+        }
+      }
     }
-  }, [year]);
+  }, [light, selected, year]);
 
   applyYearRef.current = applyYear;
 

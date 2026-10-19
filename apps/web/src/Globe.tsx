@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import type { InspectHop } from './api';
 import { buildEarthTexture, earthTextureWidth } from './earthTexture';
-import type { Look } from './looks';
+import { cablePalette, type Look } from './looks';
 import { loadCables, loadCities, loadWorld, type CableWorld, type CityPoint, type WorldData } from './world';
 
 /** Rayon du globe, comme l'original. */
@@ -276,9 +276,29 @@ function CityDots({ count }: { count: number }) {
   );
 }
 
-function CableLayer({ year }: { year: number }) {
+interface CableBatch {
+  geometry: THREE.BufferGeometry;
+  /** Année → nombre de sommets cumulés : permet un `setDrawRange`. */
+  stops: Array<{ year: number; count: number }>;
+}
+
+/**
+ * Câbles sous-marins, avec la palette d'états de la carte de référence :
+ * cyan pour un câble existant, orange pour ceux mis en service cette année-là,
+ * rouge pour ceux retirés cette année-là.
+ *
+ * La géométrie est découpée en lots, ce qui évite toute reconstruction pendant
+ * la lecture :
+ *  - `permanent`  : câbles toujours en service, triés par année → drawRange ;
+ *  - `retired`    : un lot par année de retrait, trié par année de mise en
+ *                   service → drawRange, masqué après le retrait, coloré en
+ *                   rouge l'année du retrait ;
+ *  - `isNew`      : overlay orange des câbles de l'année courante, reconstruit
+ *                   à chaque changement d'année (quelques câbles seulement).
+ */
+function CableLayer({ year, light }: { year: number; light: boolean }) {
   const [data, setData] = useState<CableWorld | null>(null);
-  const geometryRef = useRef<THREE.BufferGeometry | null>(null);
+  const permanentRef = useRef<CableBatch | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -290,147 +310,163 @@ function CableLayer({ year }: { year: number }) {
     };
   }, []);
 
-  /**
-   * Géométrie unique, **triée par année de mise en service**, et un lot par
-   * année de retrait.
-   *
-   * Les câbles encore en service sont dessinés par `setDrawRange` (un seul
-   * appel de dessin, aucun upload pendant la lecture) ; les câbles retirés —
-   * surtout le télégraphe du XIXe — sont dans un petit `lineSegments` par année
-   * de retrait, qu'on masque d'un booléen. On respecte ainsi l'histoire sans
-   * reconstruire 90 000 points à chaque année.
-   */
-  const { lineGeometry, cumulative, retired } = useMemo(() => {
-    if (!data || data.cables.length === 0) {
-      return {
-        lineGeometry: null,
-        cumulative: [] as Array<{ year: number; count: number }>,
-        retired: [] as Array<{ start: number; end: number; geometry: THREE.BufferGeometry }>,
-      };
-    }
+  const palette = useMemo(() => cablePalette(light), [light]);
+  const regular = useMemo(() => new THREE.Color(palette.regular.color), [palette]);
+  const isNewColor = useMemo(() => new THREE.Color(palette.isNew.color), [palette]);
+  const decommissioned = useMemo(() => new THREE.Color(palette.decommissioned.color), [palette]);
 
-    const addCable = (positions: number[], cable: CableWorld['cables'][number]) => {
-      for (const line of cable.lines) {
-        for (let i = 1; i < line.length; i++) {
-          const a = line[i - 1]!;
-          const b = line[i]!;
-          if ((a[0] === 0 && a[1] === 0) || (b[0] === 0 && b[1] === 0)) continue;
+  /** Sommets d'un câble, interpolés sur la sphère. */
+  const pushCable = (positions: number[], cable: CableWorld['cables'][number]) => {
+    for (const line of cable.lines) {
+      for (let i = 1; i < line.length; i++) {
+        const a = line[i - 1]!;
+        const b = line[i]!;
+        if ((a[0] === 0 && a[1] === 0) || (b[0] === 0 && b[1] === 0)) continue;
 
-          // Interpolation sur la sphère : sans ça, deux points éloignés sont
-          // reliés par une corde droite qui traverse l'océan.
-          const va = latLonToVec3(a[1]!, a[0]!, 1);
-          const vb = latLonToVec3(b[1]!, b[0]!, 1);
-          const omega = Math.acos(Math.min(1, Math.max(-1, va.dot(vb))));
-          const steps = Math.max(1, Math.min(16, Math.ceil((omega / Math.PI) * 32)));
-          const so = Math.sin(omega) || 1e-6;
-          for (let s = 0; s < steps; s++) {
-            for (const t of [s / steps, (s + 1) / steps]) {
-              const k0 = Math.sin((1 - t) * omega) / so;
-              const k1 = Math.sin(t * omega) / so;
-              const x = va.x * k0 + vb.x * k1;
-              const y = va.y * k0 + vb.y * k1;
-              const z = va.z * k0 + vb.z * k1;
-              const len = Math.hypot(x, y, z) || 1;
-              const rr = R + 0.4;
-              positions.push((x / len) * rr, (y / len) * rr, (z / len) * rr);
-            }
+        // Sans interpolation, deux points éloignés seraient reliés par une
+        // corde droite qui traverse l'océan.
+        const va = latLonToVec3(a[1]!, a[0]!, 1);
+        const vb = latLonToVec3(b[1]!, b[0]!, 1);
+        const omega = Math.acos(Math.min(1, Math.max(-1, va.dot(vb))));
+        const steps = Math.max(1, Math.min(16, Math.ceil((omega / Math.PI) * 32)));
+        const so = Math.sin(omega) || 1e-6;
+        for (let s = 0; s < steps; s++) {
+          for (const t of [s / steps, (s + 1) / steps]) {
+            const k0 = Math.sin((1 - t) * omega) / so;
+            const k1 = Math.sin(t * omega) / so;
+            const x = va.x * k0 + vb.x * k1;
+            const y = va.y * k0 + vb.y * k1;
+            const z = va.z * k0 + vb.z * k1;
+            const len = Math.hypot(x, y, z) || 1;
+            const rr = R + 0.4;
+            positions.push((x / len) * rr, (y / len) * rr, (z / len) * rr);
           }
         }
       }
-    };
+    }
+  };
 
-    const active = data.cables
-      .filter((c) => c.end === null)
-      .sort((a, b) => a.year - b.year);
-
+  /** Assemble des câbles triés par année et mémorise les seuils cumulés. */
+  const makeBatch = (cables: CableWorld['cables']): CableBatch => {
+    const sorted = [...cables].sort((a, b) => a.year - b.year);
     const positions: number[] = [];
-    const cumulative: Array<{ year: number; count: number }> = [];
-    let lastYear = Number.NaN;
+    const stops: CableBatch['stops'] = [];
 
-    for (const cable of active) {
-      addCable(positions, cable);
-      if (cable.year !== lastYear) {
-        cumulative.push({ year: cable.year, count: positions.length / 3 });
-        lastYear = cable.year;
+    for (const cable of sorted) {
+      pushCable(positions, cable);
+      if (stops.length === 0 || stops[stops.length - 1]!.year !== cable.year) {
+        stops.push({ year: cable.year, count: positions.length / 3 });
       } else {
-        cumulative[cumulative.length - 1]!.count = positions.length / 3;
+        stops[stops.length - 1]!.count = positions.length / 3;
       }
     }
 
-    const lineGeometry = new THREE.BufferGeometry();
-    lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    return { geometry, stops };
+  };
 
-    /**
-     * Câbles retirés : une géométrie **par câble**, car leur fenêtre de
-     * visibilité va de leur mise en service à leur retrait. Les regrouper par
-     * année de retrait les faisait apparaître bien avant leur construction
-     * (un câble de 1950 retiré en 2000 s'affichait dès 1858).
-     */
-    const retired: Array<{ start: number; end: number; geometry: THREE.BufferGeometry }> = [];
+  const model = useMemo(() => {
+    if (!data) return null;
+
+    const permanent = makeBatch(data.cables.filter((c) => c.end === null));
+
+    const byEnd = new Map<number, CableWorld['cables']>();
     for (const cable of data.cables) {
       if (cable.end === null) continue;
-      const pts: number[] = [];
-      addCable(pts, cable);
-      if (pts.length === 0) continue;
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-      retired.push({ start: cable.year, end: cable.end, geometry: g });
+      const list = byEnd.get(cable.end) ?? [];
+      list.push(cable);
+      byEnd.set(cable.end, list);
     }
+    const retired = [...byEnd.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([end, cables]) => ({ end, batch: makeBatch(cables) }));
 
-    return { lineGeometry, cumulative, retired };
+    return { permanent, retired };
   }, [data]);
 
-  useEffect(() => {
-    geometryRef.current = lineGeometry;
-    if (!lineGeometry) return;
-    return () => lineGeometry.dispose();
-  }, [lineGeometry]);
+  /** Overlay orange : uniquement les câbles mis en service cette année. */
+  const newBatch = useMemo(() => {
+    if (!data) return null;
+    const cables = data.cables.filter((c) => c.year === year && (c.end === null || c.end >= year));
+    if (cables.length === 0) return null;
+    return makeBatch(cables);
+  }, [data, year]);
 
+  // Libération des géométries remplacées.
   useEffect(() => {
+    if (!model) return;
     return () => {
-      for (const item of retired) item.geometry.dispose();
+      model.permanent.geometry.dispose();
+      for (const item of model.retired) item.batch.geometry.dispose();
     };
-  }, [retired]);
+  }, [model]);
 
-  // Année courante → nombre de sommets à dessiner.
   useEffect(() => {
-    const g = geometryRef.current;
-    if (!g) return;
+    if (!newBatch) return;
+    return () => newBatch.geometry.dispose();
+  }, [newBatch]);
+
+  const countUpTo = (stops: CableBatch['stops'], at: number) => {
     let count = 0;
-    for (const step of cumulative) {
-      if (step.year > year) break;
+    for (const step of stops) {
+      if (step.year > at) break;
       count = step.count;
     }
-    g.setDrawRange(0, count);
-  }, [year, cumulative, lineGeometry]);
+    return count;
+  };
+
+  useEffect(() => {
+    const batch = model?.permanent;
+    if (!batch) return;
+    permanentRef.current = batch;
+    batch.geometry.setDrawRange(0, countUpTo(batch.stops, year));
+  }, [model, year]);
 
   return (
     <>
-      {lineGeometry && (
-        <lineSegments geometry={lineGeometry}>
+      {model && (
+        <lineSegments geometry={model.permanent.geometry}>
           <lineBasicMaterial
-            color={0x2a5e94}
+            color={regular}
             transparent
-            opacity={0.14}
-            blending={THREE.AdditiveBlending}
+            opacity={palette.regular.opacity}
             depthWrite={false}
             toneMapped={false}
           />
         </lineSegments>
       )}
-      {retired.map((item, i) => (
-        // Visible de la mise en service au retrait inclus.
-        <lineSegments key={i} geometry={item.geometry} visible={year >= item.start && year <= item.end}>
+
+      {model?.retired.map((item) => {
+        // Visible jusqu'à l'année du retrait inclus ; rouge cette année-là.
+        const visible = year <= item.end;
+        const color = year === item.end ? decommissioned : regular;
+        if (visible) item.batch.geometry.setDrawRange(0, countUpTo(item.batch.stops, year));
+        return (
+          <lineSegments key={item.end} geometry={item.batch.geometry} visible={visible}>
+            <lineBasicMaterial
+              color={color}
+              transparent
+              opacity={year === item.end ? palette.decommissioned.opacity : palette.regular.opacity}
+              depthWrite={false}
+              toneMapped={false}
+            />
+          </lineSegments>
+        );
+      })}
+
+      {newBatch && (
+        // Légèrement au-dessus des autres câbles pour ressortir sans clignoter.
+        <lineSegments geometry={newBatch.geometry} position={[0, 0, 0]} renderOrder={1}>
           <lineBasicMaterial
-            color={0x2a5e94}
+            color={isNewColor}
             transparent
-            opacity={0.14}
-            blending={THREE.AdditiveBlending}
+            opacity={palette.isNew.opacity}
             depthWrite={false}
             toneMapped={false}
           />
         </lineSegments>
-      ))}
+      )}
     </>
   );
 }
@@ -1047,9 +1083,11 @@ interface GlobeProps {
   year: number;
   /** Câbles de l'année : le globe tourne vers eux. */
   focusPoint?: { lat: number; lon: number } | null;
+  /** Thème clair : la palette des câbles s'inverse (cf. `cablePalette`). */
+  light?: boolean;
 }
 
-function Scene({ hops, look, showCities, showCables, world, year, focusPoint, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
+function Scene({ hops, look, showCities, showCables, world, year, focusPoint, light = false, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
   const wide = useThree((s) => s.size.width) >= 700;
   const located = useMemo(() => hops.filter((h) => h.lat !== null && h.lon !== null), [hops]);
 
@@ -1101,7 +1139,7 @@ function Scene({ hops, look, showCities, showCables, world, year, focusPoint, on
         <Earth world={world} look={look} />
         {showCables && (
           <>
-            <CableLayer year={year} />
+            <CableLayer year={year} light={light} />
             {/* Particules circulant sur les câbles : mouvement continu, donc
                 coupé sur mobile pour alléger le GPU. */}
             {wide && <CableParticles />}
