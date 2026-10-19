@@ -7,6 +7,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { InspectHop } from './api';
 import { buildEarthTexture, earthTextureWidth } from './earthTexture';
 import type { Look } from './looks';
+import { useCableTimeline, yearOf } from './timeline';
 import { loadCables, loadCities, loadWorld, type CableWorld, type CityPoint, type WorldData } from './world';
 
 /** Rayon du globe, comme l'original. */
@@ -276,15 +277,11 @@ function CityDots({ count }: { count: number }) {
   );
 }
 
-function CableLayer({ onSelect }: { onSelect?: (name: string) => void }) {
+function CableLayer({ year }: { year: number }) {
   const [data, setData] = useState<CableWorld | null>(null);
-  const { raycaster } = useThree();
+  const timeline = useCableTimeline();
+  const geometryRef = useRef<THREE.BufferGeometry | null>(null);
 
-  // Les câbles sont des segments de ligne : sans ce seuil, il faudrait cliquer
-  // au pixel près pour ouvrir leur fiche (l'épaisseur d'une ligne est nulle).
-  useEffect(() => {
-    raycaster.params.Line = { threshold: 2.2 };
-  }, [raycaster]);
   useEffect(() => {
     let alive = true;
     loadCables()
@@ -296,15 +293,27 @@ function CableLayer({ onSelect }: { onSelect?: (name: string) => void }) {
   }, []);
 
   /**
-   * Géométrie unique (un seul appel de dessin) et table de correspondance
-   * segment → câble. Le raycast d'une `Line` renvoie l'index du premier sommet
-   * du segment touché : `owners[index / 2]` donne le nom du câble.
+   * Géométrie unique (un seul appel de dessin), **triée par année de mise en
+   * service**. On mémorise, pour chaque année, le nombre de sommets cumulés :
+   * afficher une époque revient alors à un simple `setDrawRange`, sans
+   * reconstruire la géométrie (14 000 points). C'est ce qui rend la frise
+   * fluide même sur mobile.
    */
-  const { lineGeometry, owners } = useMemo(() => {
-    if (!data || data.cables.length === 0) return { lineGeometry: null, owners: [] as string[] };
+  const { lineGeometry, cumulative } = useMemo(() => {
+    if (!data || data.cables.length === 0) {
+      return { lineGeometry: null, cumulative: [] as Array<{ year: number; count: number }> };
+    }
+
+    const sorted = [...data.cables].sort(
+      (a, b) => yearOf(timeline, a.name) - yearOf(timeline, b.name),
+    );
+
     const positions: number[] = [];
-    const owners: string[] = [];
-    for (const cable of data.cables) {
+    const cumulative: Array<{ year: number; count: number }> = [];
+    let lastYear = Number.NaN;
+
+    for (const cable of sorted) {
+      const cableYear = yearOf(timeline, cable.name);
       for (let i = 1; i < cable.points.length; i++) {
         const a = cable.points[i - 1]!;
         const b = cable.points[i]!;
@@ -329,30 +338,44 @@ function CableLayer({ onSelect }: { onSelect?: (name: string) => void }) {
             const rr = R + 0.4;
             positions.push((x / len) * rr, (y / len) * rr, (z / len) * rr);
           }
-          owners.push(cable.name);
         }
       }
+
+      if (cableYear !== lastYear) {
+        cumulative.push({ year: cableYear, count: positions.length / 3 });
+        lastYear = cableYear;
+      } else {
+        cumulative[cumulative.length - 1]!.count = positions.length / 3;
+      }
     }
+
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    return { lineGeometry: g, owners };
-  }, [data]);
+    return { lineGeometry: g, cumulative };
+  }, [data, timeline]);
+
+  useEffect(() => {
+    geometryRef.current = lineGeometry;
+    if (!lineGeometry) return;
+    return () => lineGeometry.dispose();
+  }, [lineGeometry]);
+
+  // Année courante → nombre de sommets à dessiner.
+  useEffect(() => {
+    const g = geometryRef.current;
+    if (!g) return;
+    let count = 0;
+    for (const step of cumulative) {
+      if (step.year > year) break;
+      count = step.count;
+    }
+    g.setDrawRange(0, count);
+  }, [year, cumulative, lineGeometry]);
 
   return (
     <>
       {lineGeometry && (
-        <lineSegments
-          geometry={lineGeometry}
-          onClick={(e) => {
-            if (!onSelect) return;
-            e.stopPropagation();
-            // `intersectLine` place l'index du segment dans `intersections`.
-            const idx = e.intersections?.[0]?.index ?? (e as unknown as { index?: number }).index;
-            if (idx === undefined) return;
-            const name = owners[Math.floor(idx / 2)];
-            if (name) onSelect(name);
-          }}
-        >
+        <lineSegments geometry={lineGeometry}>
           <lineBasicMaterial
             color={0x2a5e94}
             transparent
@@ -948,11 +971,11 @@ interface GlobeProps {
   look: Look;
   showCities: boolean;
   showCables: boolean;
-  /** Ouvre la fiche d'un câble au clic sur son tracé. */
-  onCable?: (name: string) => void;
+  /** Année de la frise : seuls les câbles mis en service jusque-là sont visibles. */
+  year: number;
 }
 
-function Scene({ hops, look, showCities, showCables, world, onHover, onCable }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void; onCable?: (name: string) => void }) {
+function Scene({ hops, look, showCities, showCables, world, year, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
   const wide = useThree((s) => s.size.width) >= 700;
   const located = useMemo(() => hops.filter((h) => h.lat !== null && h.lon !== null), [hops]);
 
@@ -1001,7 +1024,7 @@ function Scene({ hops, look, showCities, showCables, world, onHover, onCable }: 
         <Earth world={world} look={look} />
         {showCables && (
           <>
-            <CableLayer onSelect={onCable} />
+            <CableLayer year={year} />
             {/* Particules circulant sur les câbles : mouvement continu, donc
                 coupé sur mobile pour alléger le GPU. */}
             {wide && <CableParticles />}
@@ -1170,7 +1193,6 @@ gl={{ antialias: false, alpha: false, stencil: false, powerPreference: 'high-per
           {...props}
           world={world}
           onHover={(hop, at) => setHover(hop && at ? { hop, x: at.x, y: at.y } : null)}
-          onCable={props.onCable}
         />
         {bloomOn && <BloomLayer intensity={intensity} />}
       </Canvas>

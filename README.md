@@ -42,6 +42,8 @@ Aucune sonde, aucun compte, aucune inscription : la mesure vient de **votre** ma
   fournisseur, mise en service, points d'atterrissage, lien officiel).
 - **Thème clair ou sombre** pour toute l'interface, mémorisé et appliqué avant le
   premier rendu (aucun flash).
+- **Frise de l'histoire du réseau** : lecture année par année depuis le premier
+  câble (1989) jusqu'au réseau actuel, sur le globe **et** la carte 2D.
 - **11 apparences** : Vectoriel, Noir, Noir + Frontières, Atlas, Atlas + Frontières, Nuit,
   Nuit + Frontières, Soleil, Soleil + Frontières, Jour/Nuit, Jour/Nuit + Frontières.
 - **Deux modes de tracé** : **Topo** (la route suit les câbles sous-marins) et **Ligne**

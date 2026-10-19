@@ -1,7 +1,8 @@
 import L from 'leaflet';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { InspectHop } from './api';
+import { loadCableTimeline, yearOf, type CableTimeline } from './timeline';
 import type { Basemap, Look } from './looks';
 import { loadWorld, type WorldData } from './world';
 
@@ -130,19 +131,19 @@ function segmentPaths(from: InspectHop, to: InspectHop): Array<Array<[number, nu
  * tolérance du moteur de rendu (le réseau compte ~1 900 câbles : il est dessiné
  * sur un canevas, pas en SVG, pour rester fluide).
  */
-function addCable(
-  group: L.FeatureGroup,
+function createCable(
   path: Array<[number, number]>,
   name: string,
   cable: Basemap['cable'],
   renderer: L.Canvas,
   onSelect?: (name: string) => void,
-): void {
+): L.Layer[] {
   const base = { pane: CABLE_PANE, renderer, interactive: false as const, smoothFactor: 1.6 };
+  const layers: L.Layer[] = [];
 
   if (cable.glow) {
-    L.polyline(path, { ...base, color: cable.glow, weight: cable.weight * 5, opacity: 0.12 }).addTo(group);
-    L.polyline(path, { ...base, color: cable.glow, weight: cable.weight * 2.5, opacity: 0.24 }).addTo(group);
+    layers.push(L.polyline(path, { ...base, color: cable.glow, weight: cable.weight * 5, opacity: 0.12 }));
+    layers.push(L.polyline(path, { ...base, color: cable.glow, weight: cable.weight * 2.5, opacity: 0.24 }));
   }
 
   const line = L.polyline(path, {
@@ -152,8 +153,7 @@ function addCable(
     color: cable.color,
     weight: cable.weight,
     opacity: cable.glow ? 0.92 : 0.62,
-  })
-    .bindTooltip(name, { className: 'cable-tooltip', sticky: true });
+  }).bindTooltip(name, { className: 'cable-tooltip', sticky: true });
 
   if (onSelect) {
     line.on('click', () => onSelect(name));
@@ -169,7 +169,8 @@ function addCable(
     });
   }
 
-  line.addTo(group);
+  layers.push(line);
+  return layers;
 }
 
 /** Marqueur numéroté, aux couleurs et tailles du site. */
@@ -198,12 +199,15 @@ export function Map2D({
   showCables,
   look,
   onCable,
+  year,
 }: {
   hops: InspectHop[];
   showCables: boolean;
   look: Look;
   /** Ouvre la fiche d'un câble au clic sur son tracé. */
   onCable?: (name: string) => void;
+  /** Année de la frise : seuls les câbles mis en service jusque-là sont visibles. */
+  year: number;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -217,6 +221,10 @@ export function Map2D({
   const cableDataRef = useRef<CableFile | null>(null);
   const boundsRef = useRef<L.LatLngBounds | null>(null);
   const fitToRouteRef = useRef<(() => void) | null>(null);
+  /** Lots de câbles par année, et nombre de lots actuellement posés. */
+  const batchesRef = useRef<Array<[number, L.Layer[]]>>([]);
+  const displayedRef = useRef(0);
+  const applyYearRef = useRef<(() => void) | null>(null);
   const [toast, setToast] = useState(true);
 
   useEffect(() => {
@@ -439,40 +447,81 @@ export function Map2D({
 
     let alive = true;
 
-    const draw = (data: CableFile) => {
+    /**
+     * Un lot par année de mise en service, du plus ancien au plus récent.
+     * Afficher une année revient à ajouter (ou retirer) les lots concernés :
+     * rejouer la frise ne recrée jamais 1 900 polylignes, seuls les deltas
+     * sont manipulés.
+     */
+    const draw = (data: CableFile, timeline: CableTimeline | null) => {
       if (!alive || !mapRef.current) return;
       group.clearLayers();
+      displayedRef.current = 0;
+
+      const batches = new Map<number, L.Layer[]>();
       for (const cable of data.cables ?? []) {
+        const year = yearOf(timeline, cable.name);
         for (const segment of splitAtAntimeridian(cable.points)) {
           if (segment.length < 2) continue;
-          addCable(
-            group,
+          const layers = createCable(
             segment.map(([lon, lat]) => [lat, lon] as [number, number]),
             cable.name,
             look.basemap.cable,
             renderer,
             onCable,
           );
+          const bucket = batches.get(year) ?? [];
+          bucket.push(...layers);
+          batches.set(year, bucket);
         }
       }
+
+      batchesRef.current = [...batches.entries()].sort((a, b) => a[0] - b[0]);
+      applyYearRef.current?.();
     };
 
-    if (cableDataRef.current) {
-      draw(cableDataRef.current);
-    } else {
-      fetch('/world/cables.geo.json')
-        .then(async (res) => (res.ok ? ((await res.json()) as CableFile) : { cables: [], landings: [] }))
-        .then((data) => {
-          cableDataRef.current = data;
-          draw(data);
-        })
-        .catch(() => {});
-    }
+    void Promise.all([loadCableTimeline().catch(() => null), cableDataRef.current ? Promise.resolve(cableDataRef.current) : fetch('/world/cables.geo.json').then(async (res) => (res.ok ? ((await res.json()) as CableFile) : { cables: [], landings: [] }))])
+      .then(([timeline, data]) => {
+        cableDataRef.current = data;
+
+
+        draw(data, timeline);
+      })
+      .catch(() => {});
 
     return () => {
       alive = false;
     };
   }, [look, onCable]);
+
+  /**
+   * Applique l'année courante. `displayedRef` mémorise combien de lots sont
+   * posés : on n'ajoute que les années franchies, on ne retire que celles
+   * quittées.
+   */
+  const applyYear = useCallback(() => {
+    const group = cableRef.current;
+    if (!group) return;
+    const batches = batchesRef.current;
+    const target = year;
+
+    let shown = displayedRef.current;
+    while (shown < batches.length && batches[shown]![0] <= target) {
+      for (const layer of batches[shown]![1]) (layer as L.Polyline).addTo(group);
+      shown += 1;
+    }
+    while (shown > 0 && batches[shown - 1]![0] > target) {
+      shown -= 1;
+      for (const layer of batches[shown]![1]) group.removeLayer(layer);
+    }
+    displayedRef.current = shown;
+  }, [year]);
+
+  applyYearRef.current = applyYear;
+
+  useEffect(() => {
+    applyYear();
+  }, [applyYear]);
 
   // Les câbles restent visibles dans les deux modes : en Topo, la route les
   // suit, et le réseau permet de voir par où elle passe.

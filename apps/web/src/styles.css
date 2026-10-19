@@ -894,6 +894,144 @@ button.ghost {
   color: var(--muted);
 }
 
+/* ----------------------------------------- frise de l'histoire des câbles */
+
+/*
+ * Pastille centrée en bas, comme la carte de référence : contrôles ronds,
+ * bouton de lecture en accent avec halo, année en gros à droite.
+ * z-index au-dessus de la carte mais sous les fenêtres modales.
+ */
+.timeline {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 6;
+  padding: 7px 9px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+  backdrop-filter: blur(10px);
+  user-select: none;
+}
+
+/* Filet de progression : la position dans l'histoire, sans capter les clics. */
+.timeline-track {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--border);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.timeline-progress {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent-deep), var(--accent-soft));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
+  transition: width 0.18s linear;
+}
+
+.timeline-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.tl-btn:hover,
+.tl-btn:focus-visible {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.tl-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  margin: 0 2px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent);
+  transition: transform 0.12s, box-shadow 0.2s;
+}
+
+.tl-play:hover,
+.tl-play:focus-visible {
+  transform: scale(1.06);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--accent) 75%, transparent);
+}
+
+.tl-play.on {
+  background: var(--accent-deep);
+}
+
+.tl-year {
+  min-width: 62px;
+  margin-left: 6px;
+  font-family: var(--font-head);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Réseau complet : l'année reste lisible mais moins criarde. */
+.tl-year.end {
+  color: var(--text);
+}
+
+@media (max-width: 680px) {
+  /* En vue empilée, les contrôles de carte occupent le bas : la frise passe
+     au-dessus d'eux. */
+  .timeline {
+    bottom: 132px;
+    padding: 5px 7px 7px;
+  }
+
+  .tl-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .tl-play {
+    width: 40px;
+    height: 40px;
+  }
+
+  .tl-year {
+    min-width: 52px;
+    font-size: 19px;
+  }
+}
 /* ------------------------------------------------------------ écran d'analyse */
 
 /*
@@ -1092,35 +1230,6 @@ button.primary {
   border-color: var(--accent);
 }
 
-.timeline {
-  -webkit-appearance: none;
-  appearance: none;
-  flex: 1;
-  height: 3px;
-  border-radius: 2px;
-  background: linear-gradient(to right, var(--accent), var(--accent-deep));
-  outline: none;
-  cursor: pointer;
-}
-
-.timeline::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  border: 2px solid var(--bg);
-  box-shadow: 0 0 8px rgba(121, 192, 255, 0.6);
-}
-
-.timeline::-moz-range-thumb {
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  border: 2px solid var(--bg);
-}
 
 /* ------------------------------------------------- carte 2D (style d'origine) */
 
@@ -1206,12 +1315,13 @@ button.primary {
 
 #topo-toast {
   position: absolute;
-  bottom: 24px;
+  /* Au-dessus de la frise, qui occupe le bas de l'écran. */
+  bottom: 96px;
   left: 316px;
   z-index: 2000;
-  background: rgba(30, 30, 30, 0.62);
+  background: var(--overlay);
   color: #f0883e;
-  border: 1px solid rgba(240, 136, 62, 0.4);
+  border: 1px solid color-mix(in srgb, #f0883e 40%, transparent);
   border-radius: 8px;
   padding: 14px 40px 14px 16px;
   font-size: 13px;
