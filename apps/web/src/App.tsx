@@ -713,6 +713,8 @@ export default function App() {
             year={timeline.year}
             focusPoint={yearFocus}
             light={prefs.theme === 'light'}
+            selected={cableName}
+            onCable={setCableName}
           />
         )}
         </Suspense>

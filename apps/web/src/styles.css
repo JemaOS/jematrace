@@ -779,6 +779,20 @@ button.ghost {
   background: color-mix(in srgb, #2ea043 12%, transparent);
 }
 
+.cable-badges .badge.retired {
+  color: #f85149;
+  border-color: color-mix(in srgb, #f85149 45%, transparent);
+  background: color-mix(in srgb, #f85149 12%, transparent);
+}
+
+/* Paragraphe de présentation du câble (description TeleGeography). */
+.cable-intro {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
 .cable-badges .badge.planned {
   color: #d29922;
   border-color: color-mix(in srgb, #d29922 45%, transparent);

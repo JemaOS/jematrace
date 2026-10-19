@@ -4,11 +4,15 @@ import { useCableInfo } from './cableMeta';
 import { useT } from './i18n';
 
 /**
- * Fiche d'un câble sous-marin, ouverte au clic sur un câble de la carte 2D.
+ * Fiche d'un câble sous-marin.
  *
- * Affiche ce que l'on sait de la liaison : longueur, propriétaires,
- * fournisseur, année de mise en service, points d'atterrissage, lien officiel.
- * Les informations viennent de TeleGeography (même source que le tracé).
+ * S'ouvre au clic sur un câble, depuis la carte 2D comme depuis le globe.
+ * Présente les mêmes informations que la carte de référence : spécifications
+ * (mise en service, longueur, capacité, propriétaires), points d'atterrissage
+ * et lien officiel.
+ *
+ * Tous les libellés passent par l'i18n : français par défaut, anglais quand
+ * l'utilisateur change de langue.
  */
 export function CableModal({ name, onClose }: { name: string; onClose: () => void }) {
   const { t } = useT();
@@ -23,7 +27,8 @@ export function CableModal({ name, onClose }: { name: string; onClose: () => voi
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const planned = info ? info.year > new Date().getFullYear() : false;
+  const now = new Date().getFullYear();
+  const planned = info ? info.year > now : false;
 
   return (
     <div className="overlay" onClick={onClose} role="presentation">
@@ -55,22 +60,41 @@ export function CableModal({ name, onClose }: { name: string; onClose: () => voi
                 <span className={planned ? 'badge planned' : 'badge live'}>
                   {planned ? t('cable.planned') : t('cable.inService')}
                 </span>
-                {info.rfs && <span className="badge">{info.rfs}</span>}
+                {info.end !== null && info.end <= now && (
+                  <span className="badge retired">
+                    {t('cable.retiredIn')} {info.end}
+                  </span>
+                )}
               </div>
 
+              {info.description && <p className="cable-intro">{info.description}</p>}
+
+              <h4>{t('cable.specs')}</h4>
               <dl className="cable-facts">
+                <dt>{t('cable.rfs')}</dt>
+                <dd>{info.rfs ?? info.year}</dd>
+
                 {info.length && (
                   <>
                     <dt>{t('cable.length')}</dt>
                     <dd>{info.length}</dd>
                   </>
                 )}
+
+                {info.capacity && (
+                  <>
+                    <dt>{t('cable.capacity')}</dt>
+                    <dd>{info.capacity}</dd>
+                  </>
+                )}
+
                 {info.owners && (
                   <>
                     <dt>{t('cable.owners')}</dt>
                     <dd>{info.owners}</dd>
                   </>
                 )}
+
                 {info.suppliers && (
                   <>
                     <dt>{t('cable.suppliers')}</dt>
@@ -81,7 +105,9 @@ export function CableModal({ name, onClose }: { name: string; onClose: () => voi
 
               {info.landingPoints.length > 0 && (
                 <>
-                  <h4>{t('cable.landings')}</h4>
+                  <h4>
+                    {t('cable.landings')} ({info.landingPoints.length})
+                  </h4>
                   <ul className="cable-landings">
                     {info.landingPoints.map((lp) => (
                       <li key={`${lp.name}-${lp.country ?? ''}`}>
@@ -92,8 +118,6 @@ export function CableModal({ name, onClose }: { name: string; onClose: () => voi
                   </ul>
                 </>
               )}
-
-              {info.description && <p className="cable-notes">{info.description}</p>}
 
               <div className="cable-foot">
                 {info.url && (

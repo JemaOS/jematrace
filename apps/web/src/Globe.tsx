@@ -296,7 +296,17 @@ interface CableBatch {
  *  - `isNew`      : overlay orange des câbles de l'année courante, reconstruit
  *                   à chaque changement d'année (quelques câbles seulement).
  */
-function CableLayer({ year, light }: { year: number; light: boolean }) {
+function CableLayer({
+  year,
+  light,
+  selected,
+  onSelect,
+}: {
+  year: number;
+  light: boolean;
+  selected?: string | null;
+  onSelect?: (name: string) => void;
+}) {
   const [data, setData] = useState<CableWorld | null>(null);
   const permanentRef = useRef<CableBatch | null>(null);
 
@@ -314,6 +324,7 @@ function CableLayer({ year, light }: { year: number; light: boolean }) {
   const regular = useMemo(() => new THREE.Color(palette.regular.color), [palette]);
   const isNewColor = useMemo(() => new THREE.Color(palette.isNew.color), [palette]);
   const decommissioned = useMemo(() => new THREE.Color(palette.decommissioned.color), [palette]);
+  const selectedColor = useMemo(() => new THREE.Color(palette.selected.color), [palette]);
 
   /** Sommets d'un câble, interpolés sur la sphère. */
   const pushCable = (positions: number[], cable: CableWorld['cables'][number]) => {
@@ -388,11 +399,90 @@ function CableLayer({ year, light }: { year: number; light: boolean }) {
   /** Overlay orange : uniquement les câbles mis en service cette année. */
   const newBatch = useMemo(() => {
     if (!data) return null;
-    const cables = data.cables.filter((c) => c.year === year && (c.end === null || c.end >= year));
+    /**
+     * « Nouveau » = mis en service cette année **et pas encore retiré**.
+     *
+     * Le câble de 1858 a été retiré la même année : il doit être rouge, pas
+     * orange. L'overlay orange était dessiné par-dessus le lot rouge et le
+     * masquait entièrement.
+     */
+    const cables = data.cables.filter((c) => c.year === year && (c.end === null || c.end > year));
     if (cables.length === 0) return null;
     return makeBatch(cables);
   }, [data, year]);
 
+  /**
+   * Zone de clic : une géométrie des câbles **visibles cette année-là**, avec
+   * la correspondance index → nom (`owners`). Le raycast d'une `Line` renvoie
+   * l'index du premier sommet du segment : `owners[index / 2]`.
+   */
+  const picking = useMemo(() => {
+    if (!data || !onSelect) return null;
+    const cables = data.cables.filter(
+      (c) => c.year <= year && (c.end === null || c.end >= year),
+    );
+    const positions: number[] = [];
+    const owners: string[] = [];
+    for (const cable of cables) {
+      for (const line of cable.lines) {
+        for (let i = 1; i < line.length; i++) {
+          const a = line[i - 1]!;
+          const b = line[i]!;
+          if ((a[0] === 0 && a[1] === 0) || (b[0] === 0 && b[1] === 0)) continue;
+          const va = latLonToVec3(a[1]!, a[0]!, 1);
+          const vb = latLonToVec3(b[1]!, b[0]!, 1);
+          const omega = Math.acos(Math.min(1, Math.max(-1, va.dot(vb))));
+          const steps = Math.max(1, Math.min(16, Math.ceil((omega / Math.PI) * 32)));
+          const so = Math.sin(omega) || 1e-6;
+          for (let s = 0; s < steps; s++) {
+            for (const t of [s / steps, (s + 1) / steps]) {
+              const k0 = Math.sin((1 - t) * omega) / so;
+              const k1 = Math.sin(t * omega) / so;
+              const x = va.x * k0 + vb.x * k1;
+              const y = va.y * k0 + vb.y * k1;
+              const z = va.z * k0 + vb.z * k1;
+              const len = Math.hypot(x, y, z) || 1;
+              const rr = R + 0.4;
+              positions.push((x / len) * rr, (y / len) * rr, (z / len) * rr);
+            }
+          }
+          owners.push(cable.name);
+        }
+      }
+    }
+    if (positions.length === 0) return null;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    return { geometry, owners };
+  }, [data, year, onSelect]);
+
+  useEffect(() => {
+    if (!picking) return;
+    return () => picking.geometry.dispose();
+  }, [picking]);
+
+  /**
+   * Câble sélectionné : tracé blanc par-dessus les autres, pour ne pas le
+   * confondre avec un câble cyan ou orange.
+   */
+  const selectedBatch = useMemo(() => {
+    if (!data || !selected) return null;
+    const cable = data.cables.find((c) => c.name === selected);
+    if (!cable) return null;
+    if (cable.year > year || (cable.end !== null && cable.end < year)) return null;
+    return makeBatch([cable]);
+  }, [data, selected, year]);
+
+  useEffect(() => {
+    if (!selectedBatch) return;
+    return () => selectedBatch.geometry.dispose();
+  }, [selectedBatch]);
+
+  // Seuil de raycast plus large : les câbles sont des lignes d'épaisseur nulle.
+  const { raycaster } = useThree();
+  useEffect(() => {
+    raycaster.params.Line = { threshold: 1.6 };
+  }, [raycaster]);
   // Libération des géométries remplacées.
   useEffect(() => {
     if (!model) return;
@@ -465,6 +555,37 @@ function CableLayer({ year, light }: { year: number; light: boolean }) {
             depthWrite={false}
             toneMapped={false}
           />
+        </lineSegments>
+      )}
+
+      {/* Câble sélectionné : blanc, au-dessus du réseau. */}
+      {selectedBatch && (
+        <lineSegments geometry={selectedBatch.geometry} renderOrder={2}>
+          <lineBasicMaterial
+            color={selectedColor}
+            transparent
+            opacity={palette.selected.opacity}
+            depthWrite={false}
+            toneMapped={false}
+          />
+        </lineSegments>
+      )}
+
+      {/* Zone de clic invisible : le nom du câble s'ouvre au clic. */}
+      {picking && (
+        <lineSegments
+          geometry={picking.geometry}
+          renderOrder={3}
+          onClick={(e) => {
+            if (!onSelect) return;
+            e.stopPropagation();
+            const idx = e.intersections?.[0]?.index;
+            if (idx === undefined) return;
+            const name = picking.owners[Math.floor(idx / 2)];
+            if (name) onSelect(name);
+          }}
+        >
+          <lineBasicMaterial colorWrite={false} depthWrite={false} transparent opacity={0} />
         </lineSegments>
       )}
     </>
@@ -1117,9 +1238,13 @@ interface GlobeProps {
   focusPoint?: { lat: number; lon: number } | null;
   /** Thème clair : la palette des câbles s'inverse (cf. `cablePalette`). */
   light?: boolean;
+  /** Câble ouvert dans la fiche : tracé en blanc. */
+  selected?: string | null;
+  /** Ouvre la fiche d'un câble au clic sur son tracé. */
+  onCable?: (name: string) => void;
 }
 
-function Scene({ hops, look, showCities, showCables, world, year, focusPoint, light = false, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
+function Scene({ hops, look, showCities, showCables, world, year, focusPoint, light = false, selected = null, onCable, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
   const wide = useThree((s) => s.size.width) >= 700;
   const located = useMemo(() => hops.filter((h) => h.lat !== null && h.lon !== null), [hops]);
 
@@ -1171,7 +1296,7 @@ function Scene({ hops, look, showCities, showCables, world, year, focusPoint, li
         <Earth world={world} look={look} />
         {showCables && (
           <>
-            <CableLayer year={year} light={light} />
+            <CableLayer year={year} light={light} selected={selected} onSelect={onCable} />
             {/* Particules circulant sur les câbles : mouvement continu, donc
                 coupé sur mobile pour alléger le GPU. */}
             {wide && <CableParticles year={year} />}
@@ -1340,6 +1465,8 @@ gl={{ antialias: false, alpha: false, stencil: false, powerPreference: 'high-per
           {...props}
           world={world}
           onHover={(hop, at) => setHover(hop && at ? { hop, x: at.x, y: at.y } : null)}
+          selected={props.selected}
+          onCable={props.onCable}
         />
         {bloomOn && <BloomLayer intensity={intensity} />}
       </Canvas>
