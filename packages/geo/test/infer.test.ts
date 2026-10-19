@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { Hop } from '@geotrace/shared';
+import type { Hop } from '@jematrace/shared';
 
 import { computeSegments, inferPath, rdnsCandidates, type GeoHint } from '../src/index';
 

@@ -9,8 +9,8 @@
  * En son absence, on renvoie `null` et le mode Topo retombe sur les grands cercles.
  */
 
-import { buildCableGraph, routeHop, type Cable, type CableGraph } from '@geotrace/cable-routing';
-import type { LatLon } from '@geotrace/geo';
+import { buildCableGraph, routeHop, type Cable, type CableGraph } from '@jematrace/cable-routing';
+import type { LatLon } from '@jematrace/geo';
 
 import { readFileSync } from 'node:fs';
 

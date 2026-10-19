@@ -1,4 +1,4 @@
-# Contribuer à RouteScope
+# Contribuer à Jematrace
 
 Merci de l'intérêt porté au projet. Ce document décrit comment proposer une modification
 dans de bonnes conditions.

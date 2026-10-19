@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { polylineLength, type LatLon } from '@geotrace/geo';
+import { polylineLength, type LatLon } from '@jematrace/geo';
 
 import {
   buildCableGraph,

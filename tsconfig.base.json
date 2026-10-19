@@ -23,10 +23,10 @@
     "noEmit": false,
     "baseUrl": ".",
     "paths": {
-      "@geotrace/shared": ["packages/shared/src/index.ts"],
-      "@geotrace/traceroute-parse": ["packages/traceroute-parse/src/index.ts"],
-      "@geotrace/seg-speed": ["packages/seg-speed/src/index.ts"],
-      "@geotrace/geo": ["packages/geo/src/index.ts"]
+      "@jematrace/shared": ["packages/shared/src/index.ts"],
+      "@jematrace/traceroute-parse": ["packages/traceroute-parse/src/index.ts"],
+      "@jematrace/seg-speed": ["packages/seg-speed/src/index.ts"],
+      "@jematrace/geo": ["packages/geo/src/index.ts"]
     }
   }
 }

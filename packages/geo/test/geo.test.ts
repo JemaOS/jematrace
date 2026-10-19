@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ResolvedHop } from '@geotrace/shared';
+import type { ResolvedHop } from '@jematrace/shared';
 
 import {
   computeSegments,

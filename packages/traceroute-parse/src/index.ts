@@ -12,7 +12,7 @@
  * muets, les formes `nom [ip]` et `nom (ip)`, et les IP privées.
  */
 
-import type { Hop, ParsedTrace, TraceFormat } from '@geotrace/shared';
+import type { Hop, ParsedTrace, TraceFormat } from '@jematrace/shared';
 
 const APOSTROPHE = /\u2019/g;
 

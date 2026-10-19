@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import type { TraceResult } from '@geotrace/shared';
+import type { TraceResult } from '@jematrace/shared';
 
 import type { ClientPosition, InspectHop } from './api';
 import { groupNumber } from './format';

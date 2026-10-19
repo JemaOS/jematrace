@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { gradientCSS } from '@geotrace/seg-speed';
+import { gradientCSS } from '@jematrace/seg-speed';
 
 import { detectClientIp, inspect, type InspectHop, type InspectResponse } from './api';
 import { DEMO_ANCHOR, DEMO_TARGET, DEMO_TRACE } from './demo';
@@ -545,7 +545,7 @@ export default function App() {
       return (
         <div className="app">
           <div className="brand">
-            Route<span>Scope</span>
+            Jema<span>trace</span>
           </div>
           <Loading
             target={booting ? DEMO_TARGET : guessTarget(lastText)}
@@ -557,7 +557,7 @@ export default function App() {
     return (
       <div className="app">
         <button className="brand" onClick={goHome} title="Retour à l'accueil">
-          Route<span>Scope</span>
+          Jema<span>trace</span>
         </button>
         <PasteView onSubmit={run} busy={busy} error={error} initialText={lastText} />
       </div>
@@ -584,7 +584,7 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <button className="brand inline-brand" onClick={goHome} title="Retour à l'accueil">
-          Route<span>Scope</span>
+          Jema<span>trace</span>
         </button>
         {/* Langue et navigation forment un seul bloc à droite : séparées, le
             `space-between` du bandeau plaçait le sélecteur au milieu. */}

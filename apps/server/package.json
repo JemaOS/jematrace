@@ -1,5 +1,5 @@
 {
-  "name": "@geotrace/server",
+  "name": "@jematrace/server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,11 +10,11 @@
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
-    "@geotrace/cable-routing": "*",
-    "@geotrace/geo": "*",
-    "@geotrace/seg-speed": "*",
-    "@geotrace/shared": "*",
-    "@geotrace/traceroute-parse": "*",
+    "@jematrace/cable-routing": "*",
+    "@jematrace/geo": "*",
+    "@jematrace/seg-speed": "*",
+    "@jematrace/shared": "*",
+    "@jematrace/traceroute-parse": "*",
     "fastify": "^5.1.0",
     "maxmind": "^5.0.7"
   },

@@ -1,7 +1,7 @@
 /**
  * Compile la fonction serverless en un bundle autonome.
  *
- * Vercel compile bien `api/index.ts`, mais conserve les imports `@geotrace/*`
+ * Vercel compile bien `api/index.ts`, mais conserve les imports `@jematrace/*`
  * (paquets du monorepo) comme externes : au runtime, `node_modules` n'existe
  * pas dans `/var/task` et la fonction plante. On produit donc ici un fichier
  * unique contenant tout le graphe (paquets du workspace, Fastify, MaxMind),

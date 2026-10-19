@@ -1,5 +1,5 @@
 {
-  "name": "@geotrace/traceroute-parse",
+  "name": "@jematrace/traceroute-parse",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@geotrace/shared": "*"
+    "@jematrace/shared": "*"
   },
   "scripts": {
     "typecheck": "tsc -b"

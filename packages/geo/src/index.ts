@@ -3,7 +3,7 @@
  * référence. Ce paquet ne dépend que des types partagés.
  */
 
-import type { CityGroup, Hop, ResolvedHop, Segment } from '@geotrace/shared';
+import type { CityGroup, Hop, ResolvedHop, Segment } from '@jematrace/shared';
 
 import { cityByCode, cityByName, FACILITY_OVERRIDES, HOSTNAME_STOPWORDS, POP_OVERRIDES } from './airports.js';
 

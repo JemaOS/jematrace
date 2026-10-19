@@ -13,7 +13,7 @@
  *   MAX_INTRA_COUNTRY_KM = 8300 → on ne traverse pas un pays sur une trop longue distance
  */
 
-import { haversine, type LatLon } from '@geotrace/geo';
+import { haversine, type LatLon } from '@jematrace/geo';
 
 export interface Cable {
   name: string;

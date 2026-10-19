@@ -1,6 +1,6 @@
 {
-  "name": "RouteScope",
-  "short_name": "RouteScope",
+  "name": "Jematrace",
+  "short_name": "Jematrace",
   "description": "Collez la sortie d'un traceroute et visualisez-la sur un globe 3D ou une carte 2D.",
   "start_url": "/",
   "scope": "/",

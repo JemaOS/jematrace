@@ -1,5 +1,5 @@
 /**
- * API RouteScope — mode « coller un traceroute ».
+ * API Jematrace — mode « coller un traceroute ».
  *
  * L'utilisateur fournit la sortie de son propre traceroute.
  * Le serveur parse → enrichit (rDNS, ASN, géolocalisation) → calcule les
@@ -18,10 +18,10 @@ import {
   withRttDeltas,
   type LatLon,
   type RouteMode,
-} from '@geotrace/geo';
-import { hex, segmentRGB } from '@geotrace/seg-speed';
-import type { ResolvedHop, Segment, TraceResult } from '@geotrace/shared';
-import { parseTraceroute } from '@geotrace/traceroute-parse';
+} from '@jematrace/geo';
+import { hex, segmentRGB } from '@jematrace/seg-speed';
+import type { ResolvedHop, Segment, TraceResult } from '@jematrace/shared';
+import { parseTraceroute } from '@jematrace/traceroute-parse';
 import Fastify, { type FastifyInstance } from 'fastify';
 
 import { anchorAt, enrich, resolveAnchor, resolveClient } from './enrich.js';
@@ -39,7 +39,7 @@ await app.register(cors, { origin: true });
 
 app.get('/api/health', async () => ({
   ok: true,
-  service: 'routescope',
+  service: 'jematrace',
   version: '0.1.0',
   cableNodes: cableCount(),
 }));
@@ -242,7 +242,7 @@ app.get<{ Params: { id: string } }>('/s/:id', async (request, reply) => {
   const id = request.params.id;
   if (!shares.has(id)) return reply.code(404).type('text/html').send('<h1>Trac� introuvable</h1>');
   return reply.type('text/html').send(
-    `<!doctype html><meta http-equiv="refresh" content="0;url=/?share=${id}"><title>RouteScope</title>`,
+    `<!doctype html><meta http-equiv="refresh" content="0;url=/?share=${id}"><title>Jematrace</title>`,
   );
 });
 

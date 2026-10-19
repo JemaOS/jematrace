@@ -1,17 +1,17 @@
-# RouteScope
+# Jematrace
 
 **Visualisez n'importe quel traceroute sur un globe 3D ou une carte 2D.**
 
-RouteScope prend la sortie d'un `traceroute`, `tracert`, `mtr` ou `tracepath` que vous
+Jematrace prend la sortie d'un `traceroute`, `tracert`, `mtr` ou `tracepath` que vous
 collez, la géolocalise, et dessine le trajet dans l'espace : arcs colorés par vitesse,
 réseau de câbles sous-marins, lumières des villes, 11 apparences.
 
 Aucune sonde, aucun compte, aucune inscription : la mesure vient de **votre** machine.
 
-**Démo en ligne : <https://routescope.vercel.app>**
+**Démo en ligne : <https://jematrace.vercel.app>**
 
 <p align="center">
-  <img src="apps/web/public/icon.svg" width="96" alt="RouteScope">
+  <img src="apps/web/public/icon.svg" width="96" alt="Jematrace">
 </p>
 
 ---
@@ -65,8 +65,8 @@ Aucune sonde, aucun compte, aucune inscription : la mesure vient de **votre** ma
 Prérequis : **Node.js ≥ 20** et npm (le projet utilise les *workspaces* npm).
 
 ```bash
-git clone https://github.com/johnkryptochain/routescope.git
-cd routescope
+git clone https://github.com/johnkryptochain/jematrace.git
+cd jematrace
 npm install
 npm run dev
 ```
@@ -163,7 +163,7 @@ Entre deux villes, un A\* cherche le meilleur chemin dans ce graphe :
 ## Architecture
 
 ```
-routescope/
+jematrace/
 ├── apps/
 │   ├── server/              API Fastify (parse → enrich → mesure)
 │   │   └── src/
@@ -204,7 +204,7 @@ Base locale : `http://127.0.0.1:8787`.
 ### `GET /api/health`
 
 ```json
-{ "ok": true, "service": "routescope", "cableNodes": 5895 }
+{ "ok": true, "service": "jematrace", "cableNodes": 5895 }
 ```
 
 ### `POST /api/inspect`
@@ -270,7 +270,7 @@ Le système choisi pour la commande est mémorisé dans `localStorage.gt_os`.
 | ASN | [RIPEstat](https://stat.ripe.net/) | service public |
 | Polices | [Inter](https://rsms.me/inter/), [Manrope](https://manropefont.com/) | SIL OFL 1.1 |
 
-Les câbles TeleGeography sont **non commerciaux** : RouteScope est un projet gratuit et
+Les câbles TeleGeography sont **non commerciaux** : Jematrace est un projet gratuit et
 sans publicité. Si vous réutilisez ce dépôt à des fins commerciales, remplacez ce jeu de
 données ou obtenez une licence.
 
@@ -280,7 +280,7 @@ données ou obtenez une licence.
 
 ### Vercel (front + API)
 
-Instance publique : **<https://routescope.vercel.app>**
+Instance publique : **<https://jematrace.vercel.app>**
 
 Le dépôt contient une fonction serverless (`api/`) qui réutilise l'application Fastify.
 `npm run build` enchaîne : compilation TypeScript, build Vite, **bundle esbuild** de la
@@ -295,7 +295,7 @@ vercel --prod
 Trois points spécifiques à Vercel, déjà réglés dans le dépôt :
 
 1. **La fonction est pré-bundlée** (`tools/build-api.mjs` → `api/bundle.mjs`). Vercel
-   laisse les paquets du monorepo (`@geotrace/*`) en imports externes et n'embarque pas
+   laisse les paquets du monorepo (`@jematrace/*`) en imports externes et n'embarque pas
    `node_modules` : sans bundle, la fonction plante au démarrage.
 2. **Les routes sont réécrites** vers `api/index` avec le chemin d'origine en `?__path=`.
    Hors framework Next, un fichier `api/[...path].ts` n'est pas traité comme une route
@@ -307,7 +307,7 @@ La protection de déploiement doit être désactivée, sinon toutes les URL rép
 « Login – Vercel » (y compris `/api/*`) :
 
 ```bash
-vercel project protection disable routescope --sso
+vercel project protection disable jematrace --sso
 ```
 
 | Variable | Rôle |
@@ -321,8 +321,8 @@ vercel project protection disable routescope --sso
 ### Auto-hébergement
 
 ```bash
-npm run build -w @geotrace/web      # interface statique dans apps/web/dist
-npm run start -w @geotrace/server   # API sur le port 8787
+npm run build -w @jematrace/web      # interface statique dans apps/web/dist
+npm run start -w @jematrace/server   # API sur le port 8787
 ```
 
 Servez `apps/web/dist` derrière un reverse proxy et redirigez `/api/*` vers l'API.
@@ -339,7 +339,7 @@ Servez `apps/web/dist` derrière un reverse proxy et redirigez `/api/*` vers l'A
 | `npm run test:watch` | tests en continu |
 | `npm run typecheck` | `tsc -b` sur tout le dépôt |
 | `npm run clean` | nettoie les sorties de compilation |
-| `npm run build -w @geotrace/web` | build de production de l'interface |
+| `npm run build -w @jematrace/web` | build de production de l'interface |
 
 ---
 

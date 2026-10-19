@@ -1,4 +1,4 @@
-import type { ResolvedHop, TraceResult } from '@geotrace/shared';
+import type { ResolvedHop, TraceResult } from '@jematrace/shared';
 
 /** Un saut enrichi, avec sa couleur de segment et son état de timeout. */
 export interface InspectHop extends ResolvedHop {

@@ -10,9 +10,9 @@
  * Tout est mis en cache : une même IP n'est jamais interrogée deux fois.
  */
 
-import { ANCHOR_OVERRIDES, haversine, inferPath, type GeoHint } from '@geotrace/geo';
+import { ANCHOR_OVERRIDES, haversine, inferPath, type GeoHint } from '@jematrace/geo';
 import { open, type CityResponse, type Reader } from 'maxmind';
-import type { Hop, ResolvedHop } from '@geotrace/shared';
+import type { Hop, ResolvedHop } from '@jematrace/shared';
 
 import { readFileSync } from 'node:fs';
 
