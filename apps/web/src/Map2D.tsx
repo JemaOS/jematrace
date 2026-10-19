@@ -621,9 +621,11 @@ export function Map2D({
     const map = mapRef.current;
     if (!map) return;
     const clear = () => setHoveredCable(null);
-    map.on('mouseout zoomstart movestart', clear);
+    // dragstart couvre le glissement à la souris comme au doigt : le nom ne
+    // doit pas rester affiché pendant qu'on déplace la carte.
+    map.on('mouseout zoomstart movestart dragstart', clear);
     return () => {
-      map.off('mouseout zoomstart movestart', clear);
+      map.off('mouseout zoomstart movestart dragstart', clear);
     };
   }, []);
 

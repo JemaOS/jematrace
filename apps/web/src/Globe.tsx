@@ -597,6 +597,21 @@ function CableLayer({
           onPointerMove={(e) => {
             if (!onHover) return;
             e.stopPropagation();
+
+            /**
+             * Pendant une rotation, aucun nom ne doit apparaître.
+             *
+             * Quand on maintient le bouton (ou le doigt) et qu'on fait tourner
+             * le globe, des câbles défilent sous le curseur : sans ce test, un
+             * nom s'affichait alors que l'utilisateur ne désigne rien.
+             * `buttons !== 0` couvre la souris et le tactile (un doigt posé
+             * vaut `buttons = 1`).
+             */
+            if (e.nativeEvent.buttons !== 0) {
+              onHover(null);
+              return;
+            }
+
             const idx = e.intersections?.[0]?.index;
             if (idx === undefined) {
               onHover(null);
@@ -605,6 +620,8 @@ function CableLayer({
             const name = picking.owners[Math.floor(idx / 2)];
             onHover(name ?? null, { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY });
           }}
+          // Appui : on efface immédiatement, avant même le premier mouvement.
+          onPointerDown={() => onHover?.(null)}
           onPointerOut={() => onHover?.(null)}
           geometry={picking.geometry}
           renderOrder={3}
