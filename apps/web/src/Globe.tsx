@@ -486,7 +486,18 @@ function CableLayer({ year, light }: { year: number; light: boolean }) {
 function CableParticles({ year }: { year: number }) {
   const [data, setData] = useState<CableWorld | null>(null);
   const attrRef = useRef<THREE.BufferAttribute | null>(null);
+  const geomRef = useRef<THREE.BufferGeometry | null>(null);
   const N = 600;
+
+  /**
+   * Tampon de positions alloué une fois pour toutes.
+   *
+   * Il ne change jamais de taille : quand le nombre de particules varie (peu
+   * de câbles en 1863, beaucoup en 2026), on ajuste le `drawRange`. Un tableau
+   * redimensionné laissait les anciennes positions dans le tampon GPU, et des
+   * points apparaissaient là où aucun câble n'est dessiné.
+   */
+  const positionsRef = useRef<Float32Array>(new Float32Array(N * 3));
 
   useEffect(() => {
     let alive = true;
@@ -499,30 +510,40 @@ function CableParticles({ year }: { year: number }) {
   }, []);
 
   const state = useMemo(() => {
-    // Un point de départ par câble : on suit sa première ligne, la plus longue,
-    // pour que la particule parcoure bien tout le tracé.
-    const cables = (data?.cables ?? []).filter((c) => c.lines.length > 0);
-    if (cables.length === 0) return { items: [], positions: new Float32Array(0) };
-    const items = Array.from({ length: N }, () => {
+    // Seuls les câbles **en service cette année-là** : une particule ne doit
+    // jamais voyager sur un câble qui n'est pas encore posé (ou déjà retiré).
+    const cables = (data?.cables ?? []).filter(
+      (c) => c.lines.length > 0 && c.year <= year && (c.end === null || c.end >= year),
+    );
+    if (cables.length === 0) return { items: [], count: 0 };
+
+    /**
+     * Nombre proportionnel au réseau visible : 600 particules fixes sur les
+     * quelques câbles de 1863 formeraient un collier continu.
+     */
+    const count = Math.min(N, Math.max(12, cables.length * 3));
+    const items = Array.from({ length: count }, () => {
       const cable = cables[Math.floor(Math.random() * cables.length)]!;
-      // La ligne la plus longue du câble : la particule parcourt ainsi tout
-      // le tracé, et non un tronçon secondaire.
+      // La ligne la plus longue du câble : la particule parcourt tout le tracé.
       const points = cable.lines.reduce((best, l) => (l.length > best.length ? l : best), cable.lines[0]!);
-      return {
-        points,
-        t: Math.random(),
-        speed: 0.05 + Math.random() * 0.12,
-      };
+      return { points, t: Math.random(), speed: 0.05 + Math.random() * 0.12 };
     });
-    return { items, positions: new Float32Array(N * 3) };
+
+    return { items, count };
   }, [data, year]);
+
+  // Nombre de sommets réellement dessinés.
+  useEffect(() => {
+    geomRef.current?.setDrawRange(0, state.count);
+  }, [state]);
 
   useFrame((_, delta) => {
     const attr = attrRef.current;
-    if (!attr || state.items.length === 0) return;
-    const arr = attr.array as Float32Array;
+    if (!attr || state.count === 0) return;
+    const arr = positionsRef.current;
 
-    state.items.forEach((item, i) => {
+    for (let i = 0; i < state.count; i++) {
+      const item = state.items[i]!;
       item.t += delta * item.speed;
       if (item.t > 1) item.t -= 1;
 
@@ -534,31 +555,30 @@ function CableParticles({ year }: { year: number }) {
       const a = pts[i0]!;
       const b = pts[i1]!;
 
-      // Interpolation sphérique : correcte même au passage de l'antiméridien.
-      // Une interpolation en longitude traverserait la planète d'un bord à
-      // l'autre et poserait la particule au milieu de l'océan.
+      // Interpolation sphérique : correcte au passage de l'antiméridien, où
+      // une interpolation en longitude traverserait la planète.
       const va = latLonToVec3(a[1]!, a[0]!, 1);
       const vb = latLonToVec3(b[1]!, b[0]!, 1);
-      const p = va.clone().lerp(vb, k).normalize().multiplyScalar(R + 0.7);
+      const p = va.lerp(vb, k).normalize().multiplyScalar(R + 0.7);
       arr[i * 3] = p.x;
       arr[i * 3 + 1] = p.y;
       arr[i * 3 + 2] = p.z;
-    });
+    }
 
     attr.needsUpdate = true;
   });
 
-  if (state.items.length === 0) return null;
+  if (state.count === 0) return null;
 
   return (
     <points>
-      <bufferGeometry>
+      <bufferGeometry ref={geomRef}>
         <bufferAttribute
           ref={(a) => {
             attrRef.current = a;
           }}
           attach="attributes-position"
-          args={[state.positions, 3]}
+          args={[positionsRef.current, 3]}
         />
       </bufferGeometry>
       <pointsMaterial
