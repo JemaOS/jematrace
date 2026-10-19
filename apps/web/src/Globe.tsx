@@ -305,7 +305,7 @@ function CableLayer({ year }: { year: number }) {
       return {
         lineGeometry: null,
         cumulative: [] as Array<{ year: number; count: number }>,
-        retired: [] as Array<{ end: number; geometry: THREE.BufferGeometry }>,
+        retired: [] as Array<{ start: number; end: number; geometry: THREE.BufferGeometry }>,
       };
     }
 
@@ -360,21 +360,22 @@ function CableLayer({ year }: { year: number }) {
     const lineGeometry = new THREE.BufferGeometry();
     lineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
 
-    const byEnd = new Map<number, number[]>();
+    /**
+     * Câbles retirés : une géométrie **par câble**, car leur fenêtre de
+     * visibilité va de leur mise en service à leur retrait. Les regrouper par
+     * année de retrait les faisait apparaître bien avant leur construction
+     * (un câble de 1950 retiré en 2000 s'affichait dès 1858).
+     */
+    const retired: Array<{ start: number; end: number; geometry: THREE.BufferGeometry }> = [];
     for (const cable of data.cables) {
       if (cable.end === null) continue;
-      const bucket = byEnd.get(cable.end) ?? [];
-      addCable(bucket, cable);
-      byEnd.set(cable.end, bucket);
+      const pts: number[] = [];
+      addCable(pts, cable);
+      if (pts.length === 0) continue;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      retired.push({ start: cable.year, end: cable.end, geometry: g });
     }
-
-    const retired = [...byEnd.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([end, pts]) => {
-        const g = new THREE.BufferGeometry();
-        g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-        return { end, geometry: g };
-      });
 
     return { lineGeometry, cumulative, retired };
   }, [data]);
@@ -417,8 +418,9 @@ function CableLayer({ year }: { year: number }) {
           />
         </lineSegments>
       )}
-      {retired.map((item) => (
-        <lineSegments key={item.end} geometry={item.geometry} visible={year <= item.end}>
+      {retired.map((item, i) => (
+        // Visible de la mise en service au retrait inclus.
+        <lineSegments key={i} geometry={item.geometry} visible={year >= item.start && year <= item.end}>
           <lineBasicMaterial
             color={0x2a5e94}
             transparent
