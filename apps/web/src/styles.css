@@ -2064,6 +2064,17 @@ img.flag {
 
 
 /* Infobulle des noeuds du globe. */
+/* Infobulle réduite au nom du câble survolé. */
+.globe-tip.cable {
+  padding: 5px 10px;
+  border-color: color-mix(in srgb, #00f0ff 45%, transparent);
+  font-size: 12.5px;
+}
+
+.globe-tip.cable strong {
+  color: #00f0ff;
+  font-weight: 600;
+}
 .globe-tip {
   /* Positionnée en ligne (près du nœud touché) et bornée à l'écran. */
   position: fixed;

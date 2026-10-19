@@ -301,11 +301,17 @@ function CableLayer({
   light,
   selected,
   onSelect,
+  hovered = null,
+  onHover,
 }: {
   year: number;
   light: boolean;
   selected?: string | null;
   onSelect?: (name: string) => void;
+  /** Câble survolé : tracé en blanc, comme la sélection. */
+  hovered?: string | null;
+  /** Nom du câble sous le curseur, avec la position de l'infobulle. */
+  onHover?: (name: string | null, at?: { x: number; y: number }) => void;
 }) {
   const [data, setData] = useState<CableWorld | null>(null);
   const permanentRef = useRef<CableBatch | null>(null);
@@ -462,16 +468,18 @@ function CableLayer({
   }, [picking]);
 
   /**
-   * Câble sélectionné : tracé blanc par-dessus les autres, pour ne pas le
-   * confondre avec un câble cyan ou orange.
+  /**
+   * Câble mis en avant (sélection ou survol) : tracé blanc par-dessus les
+   * autres, pour ne pas le confondre avec un câble cyan ou orange.
    */
+  const highlight = selected ?? hovered;
   const selectedBatch = useMemo(() => {
-    if (!data || !selected) return null;
-    const cable = data.cables.find((c) => c.name === selected);
+    if (!data || !highlight) return null;
+    const cable = data.cables.find((c) => c.name === highlight);
     if (!cable) return null;
     if (cable.year > year || (cable.end !== null && cable.end < year)) return null;
     return makeBatch([cable]);
-  }, [data, selected, year]);
+  }, [data, highlight, year]);
 
   useEffect(() => {
     if (!selectedBatch) return;
@@ -481,7 +489,7 @@ function CableLayer({
   // Seuil de raycast plus large : les câbles sont des lignes d'épaisseur nulle.
   const { raycaster } = useThree();
   useEffect(() => {
-    raycaster.params.Line = { threshold: 1.6 };
+    raycaster.params.Line = { threshold: 2.4 };
   }, [raycaster]);
   // Libération des géométries remplacées.
   useEffect(() => {
@@ -1244,9 +1252,13 @@ interface GlobeProps {
   onCable?: (name: string) => void;
   /** Point demandé depuis une fiche de câble (atterrissage cliqué). */
   at?: { lat: number; lon: number } | null;
+  /** Câble survolé : tracé en blanc. */
+  hoveredCable?: string | null;
+  /** Nom du câble sous le curseur, avec la position de l'infobulle. */
+  onCableHover?: (name: string | null, at?: { x: number; y: number }) => void;
 }
 
-function Scene({ hops, look, showCities, showCables, world, year, focusPoint, light = false, selected = null, onCable, at, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
+function Scene({ hops, look, showCities, showCables, world, year, focusPoint, light = false, selected = null, hoveredCable = null, onCable, onCableHover, at, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
   const wide = useThree((s) => s.size.width) >= 700;
   const located = useMemo(() => hops.filter((h) => h.lat !== null && h.lon !== null), [hops]);
 
@@ -1288,6 +1300,9 @@ function Scene({ hops, look, showCities, showCables, world, year, focusPoint, li
   }, [located]);
 
   const arcGeometries = useArcGeometries(arcs);
+  /** Câble survolé et position du curseur : affiche son nom à côté du pointeur. */
+  const [cableHover, setCableHover] = useState<{ name: string; x: number; y: number } | null>(null);
+
 
   return (
     <>
@@ -1298,7 +1313,16 @@ function Scene({ hops, look, showCities, showCables, world, year, focusPoint, li
         <Earth world={world} look={look} />
         {showCables && (
           <>
-            <CableLayer year={year} light={light} selected={selected} onSelect={onCable} />
+            <CableLayer
+              year={year}
+              light={light}
+              selected={selected}
+              onSelect={onCable}
+              hovered={cableHover?.name ?? null}
+              onHover={(name, at) =>
+                setCableHover(name && at ? { name, x: at.x, y: at.y } : null)
+              }
+            />
             {/* Particules circulant sur les câbles : mouvement continu, donc
                 coupé sur mobile pour alléger le GPU. */}
             {wide && <CableParticles year={year} />}
@@ -1334,6 +1358,8 @@ function Scene({ hops, look, showCities, showCables, world, year, focusPoint, li
 export function Globe(props: GlobeProps) {
   const [world, setWorld] = useState<WorldData | null>(null);
   const [hover, setHover] = useState<{ hop: InspectHop; x: number; y: number } | null>(null);
+  /** Câble sous le curseur (nom + position) : nom affiché près du pointeur. */
+  const [cableHover, setCableHover] = useState<{ name: string; x: number; y: number } | null>(null);
   /**
    * Jeton de reconstruction. Un contexte WebGL perdu (mémoire insuffisante,
    * onglet laissé en arrière-plan) laissait un globe figé ou entièrement blanc :
@@ -1469,9 +1495,26 @@ gl={{ antialias: false, alpha: false, stencil: false, powerPreference: 'high-per
           onHover={(hop, at) => setHover(hop && at ? { hop, x: at.x, y: at.y } : null)}
           selected={props.selected}
           onCable={props.onCable}
+          hoveredCable={cableHover ? cableHover.name : null}
+          onCableHover={(name, at) =>
+            setCableHover(name && at ? { name, x: at.x, y: at.y } : null)
+          }
         />
         {bloomOn && <BloomLayer intensity={intensity} />}
       </Canvas>
+
+      {/* Nom du câble survolé, près du curseur : on sait sur quoi on est. */}
+      {cableHover && (
+        <div
+          className="globe-tip cable"
+          style={{
+            left: Math.min(Math.max(12, cableHover.x + 14), Math.max(12, window.innerWidth - 220)),
+            top: Math.min(Math.max(12, cableHover.y - 34), Math.max(12, window.innerHeight - 40)),
+          }}
+        >
+          <strong>{cableHover.name}</strong>
+        </div>
+      )}
 
       {hover && (
         <div

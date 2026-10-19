@@ -138,6 +138,7 @@ function createCable(
   palette: CablePalette,
   state: keyof CablePalette,
   onSelect?: (name: string) => void,
+  onHover?: (name: string | null) => void,
 ): { line: L.Polyline; hit: L.Polyline } {
   const style = palette[state];
 
@@ -163,13 +164,20 @@ function createCable(
 
   if (onSelect) {
     hit.on('click', () => onSelect(name));
+  }
+
+  // Survol : le tracé passe en blanc et le nom s'affiche. Sans ce retour
+  // visuel, impossible de savoir si le curseur est bien sur un câble.
+  if (onHover) {
     hit.on('mouseover', () => {
       const pane = renderer.getPane?.();
       if (pane) pane.style.cursor = 'pointer';
+      onHover(name);
     });
     hit.on('mouseout', () => {
       const pane = renderer.getPane?.();
       if (pane) pane.style.cursor = '';
+      onHover(null);
     });
   }
 
@@ -257,6 +265,10 @@ export function Map2D({
   yearRef.current = year;
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+  /** Câble survolé : tracé en blanc, comme la sélection. */
+  const [hoveredCable, setHoveredCable] = useState<string | null>(null);
+  const hoveredRef = useRef<string | null>(null);
+  hoveredRef.current = hoveredCable;
 
   const cablesRef = useRef<
     Array<{
@@ -508,7 +520,11 @@ export function Map2D({
       for (const cable of data.cables ?? []) {
         const layers: L.Layer[] = [];
         const lines: L.Polyline[] = [];
-        const state = cableState(cable, yearRef.current, cable.name === selectedRef.current);
+        const state = cableState(
+          cable,
+          yearRef.current,
+          cable.name === selectedRef.current || cable.name === hoveredRef.current,
+        );
         for (const line of cable.lines) {
           for (const segment of splitAtAntimeridian(line)) {
             if (segment.length < 2) continue;
@@ -519,6 +535,7 @@ export function Map2D({
               palette,
               state,
               onCable,
+              setHoveredCable,
             );
             layers.push(created.line, created.hit);
             lines.push(created.line);
@@ -578,7 +595,11 @@ export function Map2D({
 
       // Couleur de l'état : existant, nouveau (cette année), retiré, sélectionné.
       if (want) {
-        const state = cableState(cable, yearRef.current, cable.name === selectedRef.current);
+        const state = cableState(
+          cable,
+          yearRef.current,
+          cable.name === selectedRef.current || cable.name === hoveredRef.current,
+        );
         if (state !== cable.state) {
           const style = palette[state];
           for (const line of cable.lines) {
@@ -588,7 +609,7 @@ export function Map2D({
         }
       }
     }
-  }, [light, selected, year]);
+  }, [hoveredCable, light, selected, year]);
 
   applyYearRef.current = applyYear;
 
