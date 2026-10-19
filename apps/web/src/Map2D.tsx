@@ -220,7 +220,6 @@ export function Map2D({
   year,
   focus,
   at = null,
-  light = false,
   selected = null,
 }: {
   hops: InspectHop[];
@@ -234,8 +233,6 @@ export function Map2D({
   focus?: YearFocus | null;
   /** Point demandé depuis une fiche de câble (atterrissage cliqué). */
   at?: { lat: number; lon: number } | null;
-  /** Thème clair : la palette des câbles s'inverse (cf. `cablePalette`). */
-  light?: boolean;
   /** Câble ouvert dans la fiche : tracé en blanc. */
   selected?: string | null;
 }) {
@@ -514,7 +511,9 @@ export function Map2D({
       if (!alive || !mapRef.current) return;
       group.clearLayers();
 
-      const palette = cablePalette(light);
+      // Palette selon le **fond de carte**, pas le thème de l'interface : le
+      // canvas reste sombre dans tous les thèmes.
+      const palette = cablePalette(look.basemap.light === true);
       const entries: typeof cablesRef.current = [];
 
       for (const cable of data.cables ?? []) {
@@ -567,7 +566,7 @@ export function Map2D({
     };
     // Volontairement sans year ni selected : la visibilité et la couleur sont
     // appliquées par pplyYear, sans reconstruire les centaines de tracés.
-  }, [light, onCable]);
+  }, [look, onCable]);
 
   /**
    * Applique l'année courante : un câble est visible de sa mise en service à
@@ -576,7 +575,7 @@ export function Map2D({
   const applyYear = useCallback(() => {
     const group = cableRef.current;
     if (!group) return;
-    const palette = cablePalette(light);
+    const palette = cablePalette(look.basemap.light === true);
 
     for (const cable of cablesRef.current) {
       // `end >= year` : un câble retiré l'année même de sa mise en service
@@ -609,7 +608,7 @@ export function Map2D({
         }
       }
     }
-  }, [hoveredCable, light, selected, year]);
+  }, [hoveredCable, look, selected, year]);
 
   applyYearRef.current = applyYear;
 

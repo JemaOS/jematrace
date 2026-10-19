@@ -21,6 +21,8 @@ export interface Basemap {
   border?: string;
   /** Halo sous les segments de route : nécessaire sur les fonds sombres. */
   halo: boolean;
+  /** Faux par défaut : le fond est sombre, donc palette de câbles claire. */
+  light?: boolean;
 }
 
 /**
@@ -122,6 +124,8 @@ const ATLAS: Basemap = {
   background: '#0d2137',
   cable: { color: '#5b5bf0', weight: 1.6 },
   halo: false,
+  // Fond de carte clair : les câbles doivent être foncés pour rester lisibles.
+  light: true,
 };
 
 /** Nuit : lumières urbaines réelles, océans éteints. */
@@ -140,6 +144,7 @@ const SOLEIL: Basemap = {
   background: '#2a2416',
   cable: { color: '#b5461f', weight: 1.6 },
   halo: false,
+  light: true,
 };
 
 /** Jour/Nuit : carte assombrie recouverte des lumières des villes. */

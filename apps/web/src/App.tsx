@@ -415,6 +415,13 @@ ull = cadrage normal (traceroute / frise).
 
   const look = useMemo(() => lookById(prefs.look), [prefs.look]);
 
+  /**
+   * Fond clair ou sombre pour la palette des câbles : ce qui compte est le
+   * **fond affiché**, pas le thème de l'interface. Le globe est toujours
+   * sombre ; seul le fond 2D Atlas/Soleil est clair.
+   */
+  const cableLight = prefs.view === '2d' && look.basemap.light === true;
+
   const run = useCallback(
     async (text: string, options?: { mode?: RouteMode; demo?: boolean }) => {
       setBusy(true);
@@ -708,8 +715,7 @@ ull = cadrage normal (traceroute / frise).
             onCable={setCableName}
             year={timeline.year}
             focus={yearFocus}
-            light={prefs.theme === 'light'}
-selected={cableName}
+            selected={cableName}
             at={focusAt}
           />
         ) : (
@@ -720,7 +726,6 @@ selected={cableName}
             showCables={prefs.cables}
             year={timeline.year}
             focusPoint={yearFocus}
-            light={prefs.theme === 'light'}
             selected={cableName}
             onCable={setCableName}
             at={focusAt}
@@ -782,7 +787,7 @@ selected={cableName}
               ['selected', t('legend.selected')],
             ].map(([state, label]) => (
               <li key={state}>
-                <i style={{ background: cablePalette(prefs.theme === 'light')[state as keyof CablePalette].color }} />
+                <i style={{ background: cablePalette(cableLight)[state as keyof CablePalette].color }} />
                 {label}
               </li>
             ))}
