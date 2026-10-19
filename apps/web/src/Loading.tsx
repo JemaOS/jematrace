@@ -6,7 +6,7 @@ import { useT } from './i18n';
  * Écran d'analyse.
  *
  * Sur geotraceroute.com, la page attend une sonde distante (« Sonde :
- * Geo Traceroute », « ~18 s restantes »). RouteScope n'a pas de sonde : la
+ * Geo Traceroute », « ~18 s restantes »). JemaTrace n'a pas de sonde : la
  * trace vient de la machine de l'utilisateur, et le travail est la
  * géolocalisation des sauts. On garde la même mise en page — spinner à gauche,
  * titre, origine, étapes — avec des informations qui correspondent vraiment à
