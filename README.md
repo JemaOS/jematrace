@@ -65,7 +65,7 @@ Aucune sonde, aucun compte, aucune inscription : la mesure vient de **votre** ma
 Prérequis : **Node.js ≥ 20** et npm (le projet utilise les *workspaces* npm).
 
 ```bash
-git clone https://github.com/johnkryptochain/jematrace.git
+git clone https://github.com/JemaOS/jematrace.git
 cd jematrace
 npm install
 npm run dev
