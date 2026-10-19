@@ -5,6 +5,7 @@
 
 export type ViewMode = '3d' | '2d';
 export type RouteMode = 'topo' | 'line';
+export type Theme = 'dark' | 'light';
 
 export interface Prefs {
   /** Vue par défaut. Cookie `gt2_view` : `3d` | `2d`. */
@@ -19,6 +20,8 @@ export interface Prefs {
   cities: boolean;
   /** Mode geek. Cookie `gt2_geek`. */
   geek: boolean;
+  /** Thème de l'interface. Cookie `gt2_theme` : `dark` | `light`. */
+  theme: Theme;
 }
 
 export const DEFAULT_PREFS: Prefs = {
@@ -30,6 +33,7 @@ export const DEFAULT_PREFS: Prefs = {
   // l'utilisateur les active s'il le souhaite.
   cities: false,
   geek: false,
+  theme: 'dark',
 };
 
 const PREFIX = 'gt2_';
@@ -52,6 +56,7 @@ export function readPrefs(): Prefs {
     cables: readCookie(`${PREFIX}cables`) !== '0',
     cities: readCookie(`${PREFIX}cities`) === '1',
     geek: readCookie(`${PREFIX}geek`) === '1',
+    theme: readCookie(`${PREFIX}theme`) === 'light' ? 'light' : 'dark',
   };
 }
 
@@ -63,4 +68,5 @@ export function writePrefs(p: Prefs): void {
   writeCookie(`${PREFIX}cables`, p.cables ? '1' : '0');
   writeCookie(`${PREFIX}cities`, p.cities ? '1' : '0');
   writeCookie(`${PREFIX}geek`, p.geek ? '1' : '0');
+  writeCookie(`${PREFIX}theme`, p.theme);
 }

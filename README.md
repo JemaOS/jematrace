@@ -38,7 +38,10 @@ Aucune sonde, aucun compte, aucune inscription : la mesure vient de **votre** ma
 - **Globe 3D** (three.js / React Three Fiber) : continents Natural Earth, câbles sous-marins,
   villes lumineuses, étoiles, tracé progressif saut par saut, photon qui parcourt la route.
 - **Carte 2D** (Leaflet) : tuiles vectorielles ou lumières nocturnes NASA, câbles dessinés
-  au canevas, noms des câbles au survol.
+  au canevas, noms au survol et **fiche détaillée au clic** (longueur, propriétaires,
+  fournisseur, mise en service, points d'atterrissage, lien officiel).
+- **Thème clair ou sombre** pour toute l'interface, mémorisé et appliqué avant le
+  premier rendu (aucun flash).
 - **11 apparences** : Vectoriel, Noir, Noir + Frontières, Atlas, Atlas + Frontières, Nuit,
   Nuit + Frontières, Soleil, Soleil + Frontières, Jour/Nuit, Jour/Nuit + Frontières.
 - **Deux modes de tracé** : **Topo** (la route suit les câbles sous-marins) et **Ligne**

@@ -136,6 +136,7 @@ function addCable(
   name: string,
   cable: Basemap['cable'],
   renderer: L.Canvas,
+  onSelect?: (name: string) => void,
 ): void {
   const base = { pane: CABLE_PANE, renderer, interactive: false as const, smoothFactor: 1.6 };
 
@@ -144,7 +145,7 @@ function addCable(
     L.polyline(path, { ...base, color: cable.glow, weight: cable.weight * 2.5, opacity: 0.24 }).addTo(group);
   }
 
-  L.polyline(path, {
+  const line = L.polyline(path, {
     pane: CABLE_PANE,
     renderer,
     smoothFactor: 1.6,
@@ -152,8 +153,23 @@ function addCable(
     weight: cable.weight,
     opacity: cable.glow ? 0.92 : 0.62,
   })
-    .bindTooltip(name, { className: 'cable-tooltip', sticky: true })
-    .addTo(group);
+    .bindTooltip(name, { className: 'cable-tooltip', sticky: true });
+
+  if (onSelect) {
+    line.on('click', () => onSelect(name));
+    // Curseur « main » sur le tracé. Le canevas est le conteneur du moteur de
+    // rendu ; `getPane()` renvoie la zone où il est monté.
+    line.on('mouseover', () => {
+      const pane = renderer.getPane?.();
+      if (pane) pane.style.cursor = 'pointer';
+    });
+    line.on('mouseout', () => {
+      const pane = renderer.getPane?.();
+      if (pane) pane.style.cursor = '';
+    });
+  }
+
+  line.addTo(group);
 }
 
 /** Marqueur numéroté, aux couleurs et tailles du site. */
@@ -181,10 +197,13 @@ export function Map2D({
   hops,
   showCables,
   look,
+  onCable,
 }: {
   hops: InspectHop[];
   showCables: boolean;
   look: Look;
+  /** Ouvre la fiche d'un câble au clic sur son tracé. */
+  onCable?: (name: string) => void;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -432,6 +451,7 @@ export function Map2D({
             cable.name,
             look.basemap.cable,
             renderer,
+            onCable,
           );
         }
       }
@@ -452,7 +472,7 @@ export function Map2D({
     return () => {
       alive = false;
     };
-  }, [look]);
+  }, [look, onCable]);
 
   // Les câbles restent visibles dans les deux modes : en Topo, la route les
   // suit, et le réseau permet de voir par où elle passe.

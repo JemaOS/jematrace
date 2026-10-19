@@ -6,7 +6,7 @@
  * Stratégie : réseau d'abord, cache en secours hors ligne. Un changement de
  * réseau (5G ↔ Wi-Fi) ne doit jamais servir une réponse périmée.
  */
-const CACHE = 'jematrace-v1';
+const CACHE = 'jematrace-v2';
 const SHELL = ['/', '/index.html', '/icon.svg', '/manifest.webmanifest', '/world/world-110m.json'];
 
 self.addEventListener('install', (event) => {

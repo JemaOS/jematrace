@@ -12,6 +12,24 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <title>JemaTrace — Coller un traceroute</title>
+
+    <!--
+      Thème appliqué avant le premier rendu : sans ce script, une page en thème
+      clair s'afficherait une fraction de seconde en sombre. La préférence est
+      lue dans le même cookie que le reste de l'application.
+    -->
+    <script>
+      try {
+        var m = document.cookie.match(/(?:^|; )gt2_theme=([^;]*)/);
+        if (m && decodeURIComponent(m[1]) === 'light') {
+          document.documentElement.dataset.theme = 'light';
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute('content', '#eef2f7');
+        }
+      } catch (e) {}
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- Mêmes polices que jemaos.com : Inter pour le texte, Manrope pour les titres. -->

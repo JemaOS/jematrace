@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { gradientCSS } from '@jematrace/seg-speed';
 
 import { detectClientIp, inspect, type InspectHop, type InspectResponse } from './api';
+import { CableModal } from './CableModal';
 import { DEMO_ANCHOR, DEMO_TARGET, DEMO_TRACE } from './demo';
 import { guessTarget, Loading } from './Loading';
 import { useT } from './i18n';
@@ -11,7 +12,7 @@ const Globe = lazy(() => import('./Globe').then((m) => ({ default: m.Globe })));
 import { LOOKS, lookById } from './looks';
 const Map2D = lazy(() => import('./Map2D').then((m) => ({ default: m.Map2D })));
 import { Panel, type RecentEntry } from './Panel';
-import { DEFAULT_PREFS, readPrefs, writePrefs, type Prefs, type RouteMode } from './prefs';
+import { DEFAULT_PREFS, readPrefs, writePrefs, type Prefs, type RouteMode, type Theme } from './prefs';
 
 const PLACEHOLDER = `traceroute to google.com (142.250.74.110), 30 hops max
  1  192.168.1.1 (192.168.1.1)  1.234 ms
@@ -102,6 +103,20 @@ function PreferencesModal({
 
   return (
     <InfoModal title="Préférences" onClose={onClose}>
+      <div className="row">
+        <span>
+          <b>{t('prefs.theme')}</b>
+        </span>
+        <div className="seg">
+          <button className={draft.theme === 'dark' ? 'on' : ''} onClick={() => setDraft({ ...draft, theme: 'dark' })}>
+            {t('prefs.themeDark')}
+          </button>
+          <button className={draft.theme === 'light' ? 'on' : ''} onClick={() => setDraft({ ...draft, theme: 'light' })}>
+            {t('prefs.themeLight')}
+          </button>
+        </div>
+      </div>
+
       <label className="row">
         <span>
           <b>{t('prefs.look')}</b>
@@ -303,7 +318,22 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(() => readPrefs());
   const [draft, setDraft] = useState<Prefs>(() => readPrefs());
+
+  /**
+   * Thème appliqué au document. `data-theme` suffit : toutes les couleurs de
+   * l'interface passent par des variables CSS. L'attribut est posé avant le
+   * premier rendu utile et suit la préférence (modale comme bouton du bandeau).
+   */
+  useEffect(() => {
+    document.documentElement.dataset.theme = prefs.theme;
+    // La barre du navigateur suit aussi le thème.
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', prefs.theme === 'light' ? '#eef2f7' : '#070b14');
+  }, [prefs.theme]);
   const [modal, setModal] = useState<'prefs' | 'method' | 'credits' | 'contact' | null>(null);
+  /** Nom du câble dont la fiche est ouverte (clic sur un câble en 2D). */
+  const [cableName, setCableName] = useState<string | null>(null);
   const [lastText, setLastText] = useState('');
   const [panelOpen, setPanelOpen] = useState(true);
   /** Vrai tant que le resultat affiche est la trace de demonstration. */
@@ -590,6 +620,34 @@ export default function App() {
             `space-between` du bandeau plaçait le sélecteur au milieu. */}
         <div className="topbar-right">
           <button
+            className="theme-toggle"
+            title={prefs.theme === 'dark' ? t('nav.themeDark') : t('nav.themeLight')}
+            aria-label={prefs.theme === 'dark' ? t('nav.themeDark') : t('nav.themeLight')}
+            onClick={() => {
+              const theme: Theme = prefs.theme === 'dark' ? 'light' : 'dark';
+              const next = { ...prefs, theme };
+              setPrefs(next);
+              writePrefs(next);
+            }}
+          >
+            {/* Soleil en thème sombre (action : passer en clair), lune sinon. */}
+            {prefs.theme === 'dark' ? (
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <circle cx="12" cy="12" r="4.2" fill="currentColor" />
+                <g stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <path d="M12 2.4v2.6M12 19v2.6M2.4 12h2.6M19 12h2.6M5.2 5.2l1.9 1.9M16.9 16.9l1.9 1.9M18.8 5.2l-1.9 1.9M7.1 16.9l-1.9 1.9" />
+                </g>
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path
+                  d="M20.5 14.6A8.6 8.6 0 1 1 9.4 3.5a7 7 0 0 0 11.1 11.1z"
+                  fill="currentColor"
+                />
+              </svg>
+            )}
+          </button>
+          <button
             className="lang-pill"
             title="Choisir la langue / Choose language"
             onClick={() => setLang(lang === 'fr' ? 'en' : 'fr')}
@@ -630,9 +688,9 @@ export default function App() {
       <div className="canvas-wrap">
         <Suspense fallback={<div className="spinner">Chargement du globe...</div>}>
         {prefs.view === '2d' ? (
-          <Map2D hops={mapHopsWithClient} showCables={prefs.cables} look={look} />
+          <Map2D hops={mapHopsWithClient} showCables={prefs.cables} look={look} onCable={setCableName} />
         ) : (
-          <Globe hops={globeHops} look={look} showCities={prefs.cities} showCables={prefs.cables} />
+          <Globe hops={globeHops} look={look} showCities={prefs.cities} showCables={prefs.cables} onCable={setCableName} />
         )}
         </Suspense>
       </div>
@@ -715,6 +773,9 @@ export default function App() {
           </ul>
         </InfoModal>
       )}
+
+      {/* Fiche d'un câble, ouverte au clic sur son tracé dans la carte 2D. */}
+      {cableName && <CableModal name={cableName} onClose={() => setCableName(null)} />}
 
     </div>
   );

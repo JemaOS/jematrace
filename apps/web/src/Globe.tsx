@@ -276,8 +276,15 @@ function CityDots({ count }: { count: number }) {
   );
 }
 
-function CableLayer() {
+function CableLayer({ onSelect }: { onSelect?: (name: string) => void }) {
   const [data, setData] = useState<CableWorld | null>(null);
+  const { raycaster } = useThree();
+
+  // Les câbles sont des segments de ligne : sans ce seuil, il faudrait cliquer
+  // au pixel près pour ouvrir leur fiche (l'épaisseur d'une ligne est nulle).
+  useEffect(() => {
+    raycaster.params.Line = { threshold: 2.2 };
+  }, [raycaster]);
   useEffect(() => {
     let alive = true;
     loadCables()
@@ -288,9 +295,15 @@ function CableLayer() {
     };
   }, []);
 
-  const lineGeometry = useMemo(() => {
-    if (!data || data.cables.length === 0) return null;
+  /**
+   * Géométrie unique (un seul appel de dessin) et table de correspondance
+   * segment → câble. Le raycast d'une `Line` renvoie l'index du premier sommet
+   * du segment touché : `owners[index / 2]` donne le nom du câble.
+   */
+  const { lineGeometry, owners } = useMemo(() => {
+    if (!data || data.cables.length === 0) return { lineGeometry: null, owners: [] as string[] };
     const positions: number[] = [];
+    const owners: string[] = [];
     for (const cable of data.cables) {
       for (let i = 1; i < cable.points.length; i++) {
         const a = cable.points[i - 1]!;
@@ -316,18 +329,30 @@ function CableLayer() {
             const rr = R + 0.4;
             positions.push((x / len) * rr, (y / len) * rr, (z / len) * rr);
           }
+          owners.push(cable.name);
         }
       }
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    return g;
+    return { lineGeometry: g, owners };
   }, [data]);
 
   return (
     <>
       {lineGeometry && (
-        <lineSegments geometry={lineGeometry}>
+        <lineSegments
+          geometry={lineGeometry}
+          onClick={(e) => {
+            if (!onSelect) return;
+            e.stopPropagation();
+            // `intersectLine` place l'index du segment dans `intersections`.
+            const idx = e.intersections?.[0]?.index ?? (e as unknown as { index?: number }).index;
+            if (idx === undefined) return;
+            const name = owners[Math.floor(idx / 2)];
+            if (name) onSelect(name);
+          }}
+        >
           <lineBasicMaterial
             color={0x2a5e94}
             transparent
@@ -923,9 +948,11 @@ interface GlobeProps {
   look: Look;
   showCities: boolean;
   showCables: boolean;
+  /** Ouvre la fiche d'un câble au clic sur son tracé. */
+  onCable?: (name: string) => void;
 }
 
-function Scene({ hops, look, showCities, showCables, world, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
+function Scene({ hops, look, showCities, showCables, world, onHover, onCable }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void; onCable?: (name: string) => void }) {
   const wide = useThree((s) => s.size.width) >= 700;
   const located = useMemo(() => hops.filter((h) => h.lat !== null && h.lon !== null), [hops]);
 
@@ -974,7 +1001,7 @@ function Scene({ hops, look, showCities, showCables, world, onHover }: GlobeProp
         <Earth world={world} look={look} />
         {showCables && (
           <>
-            <CableLayer />
+            <CableLayer onSelect={onCable} />
             {/* Particules circulant sur les câbles : mouvement continu, donc
                 coupé sur mobile pour alléger le GPU. */}
             {wide && <CableParticles />}
@@ -1103,7 +1130,7 @@ export function Globe(props: GlobeProps) {
         // ici (le composer gère l'anticrénelage) et coûtaient une copie par image.
         camera={{ position: [0, 120, 820], fov: 30, near: 1, far: 10000 }}
         dpr={dpr}
-        gl={{ antialias: false, alpha: false, stencil: false, powerPreference: 'high-performance' }}
+gl={{ antialias: false, alpha: false, stencil: false, powerPreference: 'high-performance' }}
         // Un tap dans le vide referme l'infobulle (indispensable au
         // tactile : `pointerout` n'y est pas fiable).
         onPointerMissed={() => setHover(null)}
@@ -1143,6 +1170,7 @@ export function Globe(props: GlobeProps) {
           {...props}
           world={world}
           onHover={(hop, at) => setHover(hop && at ? { hop, x: at.x, y: at.y } : null)}
+          onCable={props.onCable}
         />
         {bloomOn && <BloomLayer intensity={intensity} />}
       </Canvas>
