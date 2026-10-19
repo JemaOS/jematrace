@@ -143,6 +143,59 @@ describe('tracepath (ChromeOS crosh)', () => {
   });
 });
 
+describe('tracepath crosh (sortie réelle)', () => {
+  // Cas réel : le saut 6 a son IP détachée, plusieurs lignes vides plus bas
+  // (le terminal a coupé la ligne), et la trace se termine par « Too many hops ».
+  const REAL = `crosh> tracepath youtube.com
+ 1?: [LOCALHOST]                      pmtu 1500
+ 1:  livebox.home                                          3.456ms
+ 1:  livebox.home                                          3.139ms
+ 2:  no reply
+ 3:  92.184.150.30                                         7.511ms
+ 4:  ae43-0.nimar202.rbci.orange.net                       8.622ms asymm  5
+ 5:  no reply
+ 6:  
+
+
+
+
+
+
+72.14.203.56                                          9.501ms asymm  7
+ 7:  no reply
+ 8:  no reply
+30:  no reply
+     Too many hops: pmtu 1500
+     Resume: pmtu 1500
+crosh>`;
+
+  const r = parseTraceroute(REAL);
+
+  it('lit la cible dans la ligne de commande', () => {
+    expect(r.format).toBe('tracepath');
+    expect(r.target).toBe('youtube.com');
+  });
+
+  it('rattache une IP détachée sur plusieurs lignes au bon saut', () => {
+    const hop6 = r.hops.find((h) => h.ttl === 6);
+    expect(hop6).toMatchObject({ ip: '72.14.203.56', rttMs: [9.501], timeout: false });
+    // et elle ne doit pas avoir été prise pour le saut 7.
+    expect(r.hops.find((h) => h.ttl === 7)?.ip).toBeNull();
+  });
+
+  it('garde le nom seul quand il n’y a pas d’IP (saut 4)', () => {
+    const hop4 = r.hops.find((h) => h.ttl === 4);
+    expect(hop4?.host).toBe('ae43-0.nimar202.rbci.orange.net');
+    expect(hop4?.ip).toBeNull();
+    expect(hop4?.rttMs).toEqual([8.622]);
+  });
+
+  it('ne prend pas « Too many hops » pour un saut', () => {
+    expect(r.hops.map((h) => h.ttl)).not.toContain(31);
+    expect(r.hops).toHaveLength(9); // 1,2,3,4,5,6,7,8,30
+  });
+});
+
 describe('robustesse', () => {
   it('tolère un prompt en fin de sortie et les lignes vides', () => {
     const r = parseTraceroute(`${TRACERT_FR}\nPS C:\\Users\\Jema>\n`);

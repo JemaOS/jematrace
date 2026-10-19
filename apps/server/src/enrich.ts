@@ -49,6 +49,7 @@ class TtlCache<T> {
 }
 
 const ptrCache = new TtlCache<string | null>(6 * 60 * 60 * 1000);
+const ipv4Cache = new TtlCache<string | null>(6 * 60 * 60 * 1000);
 const geoCache = new TtlCache<GeoInfo | null>(6 * 60 * 60 * 1000);
 const asnCache = new TtlCache<AsnLookup | null>(6 * 60 * 60 * 1000);
 
@@ -107,6 +108,44 @@ export async function lookupPtr(ip: string): Promise<string | null> {
     return value;
   } catch {
     ptrCache.set(ip, null);
+    return null;
+  }
+}
+
+/**
+ * Résout un nom d'hôte en IPv4 (DoH).
+ *
+ * `tracepath` (crosh, Linux) affiche souvent le nom sans l'IP :
+ * « 4: ae43-0.nimar202.rbci.orange.net 8.622ms ». Sans IP, le saut ne peut
+ * être ni géolocalisé ni rattaché à un AS : on récupère donc l'adresse.
+ */
+export async function lookupIpv4(host: string): Promise<string | null> {
+  const key = host.toLowerCase().replace(/\.$/, '');
+  const cached = ipv4Cache.get(key);
+  if (cached !== undefined) return cached;
+
+  // Un nom local (« livebox.home ») n'a pas d'enregistrement public.
+  if (!key.includes('.') || /\.(home|local|lan|internal)$/i.test(key)) {
+    ipv4Cache.set(key, null);
+    return null;
+  }
+
+  try {
+    const res = await fetch(`${DOH}?name=${encodeURIComponent(key)}&type=A`, {
+      headers: { accept: 'application/dns-json' },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!res.ok) {
+      ipv4Cache.set(key, null);
+      return null;
+    }
+    const json = (await res.json()) as { Answer?: Array<{ type: number; data: string }> };
+    const answer = json.Answer?.find((a) => a.type === 1 && /^(?:\d{1,3}\.){3}\d{1,3}$/.test(a.data));
+    const value = answer?.data ?? null;
+    ipv4Cache.set(key, value);
+    return value;
+  } catch {
+    ipv4Cache.set(key, null);
     return null;
   }
 }
@@ -225,7 +264,17 @@ export async function lookupGeoBatch(ips: readonly string[]): Promise<Map<string
 
 /** Enrichit et géolocalise les sauts : PTR + GeoIP, puis inférence (rDNS prioritaire + latence). */
 export async function enrich(hops: readonly Hop[], anchor?: { lat: number; lon: number; city?: string }): Promise<ResolvedHop[]> {
-  const ips = [...new Set(hops.filter((h) => h.ip !== null && !h.private).map((h) => h.ip!))];
+  // `tracepath` donne souvent le nom sans l'IP : on la retrouve pour pouvoir
+  // géolocaliser le saut. Le nom reste affiché, seule l'adresse est complétée.
+  const resolved = await Promise.all(
+    hops.map(async (hop) => {
+      if (hop.ip !== null || !hop.host) return hop;
+      const ip = await lookupIpv4(hop.host);
+      return ip ? { ...hop, ip, private: isPrivateIp(ip) } : hop;
+    }),
+  );
+
+  const ips = [...new Set(resolved.filter((h) => h.ip !== null && !h.private).map((h) => h.ip!))];
 
   const ptr = new Map<string, string | null>();
   await runLimited(ips, 8, async (ip) => {
@@ -276,7 +325,7 @@ export async function enrich(hops: readonly Hop[], anchor?: { lat: number; lon: 
     });
   }
 
-  return inferPath({ hops, ptr, geo: merged, anchor });
+  return inferPath({ hops: resolved, ptr, geo: merged, anchor });
 }
 
 /** ASN d'une IP via **RIPEstat** (couvre tous les registres, renvoie aussi le nom). */

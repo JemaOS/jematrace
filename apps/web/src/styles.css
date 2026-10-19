@@ -710,6 +710,98 @@ button.ghost {
   color: var(--muted);
 }
 
+/* ------------------------------------------------------------ écran d'analyse */
+
+/*
+ * Même composition que la référence : spinner à gauche, informations à droite.
+ * Le texte décrit ce qui se passe réellement (il n'y a pas de sonde distante).
+ */
+.loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  padding: 24px;
+}
+
+.loading-spinner {
+  flex: 0 0 auto;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 4px solid rgba(91, 91, 240, 0.18);
+  border-top-color: var(--accent);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-body {
+  max-width: 520px;
+}
+
+.loading-body h2 {
+  margin: 0 0 10px;
+  font-size: 24px;
+  line-height: 1.25;
+}
+
+.loading-source {
+  margin: 0 0 6px;
+  color: var(--text);
+  opacity: 0.85;
+}
+
+.loading-meta {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.loading-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--muted);
+}
+
+.loading-step {
+  margin: 0;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+@media (max-width: 680px) {
+  .loading {
+    flex-direction: column;
+    gap: 22px;
+    text-align: center;
+  }
+
+  .loading-spinner {
+    width: 66px;
+    height: 66px;
+    border-width: 3px;
+  }
+
+  .loading-body h2 {
+    font-size: 19px;
+  }
+}
+
+/* Animation réduite : le spinner ralentit, il ne disparaît pas (il indique
+   toujours que le travail est en cours). */
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation-duration: 2.4s;
+  }
+}
 /* ----------------------------------------------------------------- carte 2D */
 
 .map2d {

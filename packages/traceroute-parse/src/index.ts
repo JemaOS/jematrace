@@ -213,19 +213,21 @@ function parseMtr(lines: string[], warnings: string[]): { target: string | null;
 function parseTracepath(lines: string[], warnings: string[]): { target: string | null; destIp: string | null; maxHops: number | null; hops: Hop[] } {
   const byTtl = new Map<number, Hop>();
 
-  for (const line of lines) {
-    const row = /^\s*(\d+)\??:\s+(.*)$/.exec(line);
-    if (!row) continue;
-    const ttl = Number.parseInt(row[1]!, 10);
-    const body = row[2]!.trim();
+  const best = (h: Hop) => (h.rttMs.length ? Math.min(...h.rttMs) : Number.POSITIVE_INFINITY);
+
+  /** Enregistre le corps d'un saut (ligne complète ou suite d'une ligne coupée). */
+  const apply = (ttl: number, raw: string) => {
+    const body = raw.trim();
+    if (!body) return;
 
     // `1?: [LOCALHOST] pmtu 1500` : ligne d'information MTU.
-    if (body.startsWith('[') || /^\[?LOCALHOST\]?/i.test(body)) continue;
+    if (body.startsWith('[') || /^\[?LOCALHOST\]?/i.test(body)) return;
+
     if (/^no reply$/i.test(body)) {
       if (!byTtl.has(ttl)) {
         byTtl.set(ttl, { ttl, ip: null, host: null, rttMs: [], timeout: true, private: false });
       }
-      continue;
+      return;
     }
 
     const rtts = extractRtts(body);
@@ -243,17 +245,76 @@ function parseTracepath(lines: string[], warnings: string[]): { target: string |
       timeout: rtts.length === 0,
       private: ip !== null ? isPrivateIp(ip) : false,
     };
+
     const prev = byTtl.get(ttl);
-    // tracepath répète souvent le même TTL : on garde la latence la plus faible.
-    if (!prev) byTtl.set(ttl, candidate);
-    else {
-      const best = (h: Hop) => (h.rttMs.length ? Math.min(...h.rttMs) : Number.POSITIVE_INFINITY);
-      if (best(candidate) < best(prev)) byTtl.set(ttl, candidate);
+    if (!prev || prev.timeout) {
+      byTtl.set(ttl, candidate);
+      return;
     }
+    // tracepath répète souvent le même TTL : on garde la latence la plus faible.
+    if (best(candidate) < best(prev)) byTtl.set(ttl, candidate);
+  };
+
+  /**
+   * Une ligne peut être coupée par le terminal : ` 6:` puis, quelques lignes
+   * plus bas, `72.14.203.56   9.501ms asymm 7`. On mémorise le TTL en attente
+   * et on rattache la première ligne utile qui suit.
+   */
+  let pending: number | null = null;
+
+  for (const line of lines) {
+    // `\s*` et non `\s+` : le terminal peut laisser « 6: » sans contenu, et les
+    // espaces de fin ont été retirés avant l'analyse.
+    const row = /^\s*(\d+)\??:(?:\s+(.*))?$/.exec(line);
+    if (row) {
+      const ttl = Number.parseInt(row[1]!, 10);
+      const body = (row[2] ?? '').trim();
+      if (body) {
+        pending = null;
+        apply(ttl, body);
+      } else {
+        pending = ttl;
+      }
+      continue;
+    }
+
+    if (pending === null) continue;
+    const body = line.trim();
+    if (!body) continue;
+    // Fin de trace, invite du shell, bruit : on abandonne l'attente.
+    if (/^(too many hops|resume:|crosh>|tracepath\b)/i.test(body)) {
+      pending = null;
+      continue;
+    }
+    // Sans chiffre ni point, ce n'est pas une adresse : on abandonne.
+    if (!/[\d.]/.test(body)) {
+      pending = null;
+      continue;
+    }
+    apply(pending, body);
+    pending = null;
   }
 
   if (byTtl.size === 0) warnings.push('Aucun saut reconnu (format tracepath attendu).');
-  return { target: null, destIp: null, maxHops: null, hops: [...byTtl.values()] };
+
+  const hops = [...byTtl.values()];
+
+  // Cible : `crosh> tracepath youtube.com` (ou `tracepath youtube.com`).
+  let target: string | null = null;
+  for (const line of lines) {
+    const cmd = /\btracepath\s+(\S+)/i.exec(line);
+    if (cmd) {
+      target = cmd[1]!.replace(/[),.;]+$/, '');
+      break;
+    }
+  }
+
+  // Aucun en-tête ne donne l'IP cible : on prend le dernier saut qui répond.
+  const destIp = [...hops]
+    .sort((a, b) => b.ttl - a.ttl)
+    .find((h) => h.ip !== null)?.ip ?? null;
+
+  return { target, destIp, maxHops: null, hops };
 }
 
 /* --------------------------------------- copier-coller abîmé (terminal mobile) */
@@ -572,7 +633,8 @@ function detectFormat(text: string): TraceFormat {
   if (/^\s*SAUT\b.*\bPING\b/im.test(text) && /PAYS/i.test(text)) return 'report';
   if (/(?:tracing route to|détermination de l'itinéraire vers)/i.test(text)) return 'tracert';
   if (/\.\|\-\-|loss%\s+snt/i.test(text)) return 'mtr';
-  if (/resume:\s*pmtu|^\s*\d+\?:\s/m.test(text)) return 'tracepath';
+  if (/resume:\s*pmtu|^\s*\d+\?:\s/mi.test(text)) return 'tracepath';
+  if (/^\s*crosh>\s*tracepath\b/im.test(text)) return 'tracepath';
   if (/traceroute to /i.test(text)) return 'traceroute';
   return 'tracert';
 }

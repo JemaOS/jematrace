@@ -120,8 +120,14 @@ export function Panel({ result, hops, geek, warning, onReset, onShare, onCollaps
           <b>{t('panel.asPath')}</b> {result.asPath.join(' ') || '—'}
         </div>
         <div>
-          <b>{t('panel.distance')}</b> {groupNumber(result.distanceKm)} km ({groupNumber(result.speedKmS)} km/s)
+          <b>{t('panel.distance')}</b>{' '}
+          {/* Distance nulle = aucun saut géolocalisable (tracepath qui ne donne
+              que des noms). Afficher « 0 km » laisserait croire à une mesure. */}
+          {result.distanceKm > 0
+            ? `${groupNumber(result.distanceKm)} km (${groupNumber(result.speedKmS)} km/s)`
+            : '—'}
         </div>
+        {result.distanceKm === 0 && <div className="metrics-note">{t('panel.noDistance')}</div>}
         {/* Sur une liaison courte ou entièrement terrestre, aucun câble
             sous-marin n'est emprunté : les deux modes donnent le même tracé.
             Le dire évite de croire que le bouton Topo/Ligne ne fait rien. */}

@@ -22,5 +22,8 @@ avec un maximum de 30 sauts :
  12    18 ms    18 ms    18 ms  62.210.39.166
 `;
 
+/** Cible de la démonstration, lue dans l'en-tête de la trace. */
+export const DEMO_TARGET = 'drop.jemaos.com';
+
 /** Point de départ du trace de démonstration (Cannes), sans aucune IP. */
 export const DEMO_ANCHOR = { lat: 43.5513, lon: 7.0128 };

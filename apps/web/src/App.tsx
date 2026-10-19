@@ -3,7 +3,8 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { gradientCSS } from '@geotrace/seg-speed';
 
 import { detectClientIp, inspect, type InspectHop, type InspectResponse } from './api';
-import { DEMO_ANCHOR, DEMO_TRACE } from './demo';
+import { DEMO_ANCHOR, DEMO_TARGET, DEMO_TRACE } from './demo';
+import { guessTarget, Loading } from './Loading';
 import { useT } from './i18n';
 // Globe et carte charges a la demande (chunks separes).
 const Globe = lazy(() => import('./Globe').then((m) => ({ default: m.Globe })));
@@ -309,6 +310,8 @@ export default function App() {
   const [isDemo, setIsDemo] = useState(false);
   /** Vrai pendant l'ouverture : evite d'afficher l'ecran de collage puis la demo. */
   const [booting, setBooting] = useState(true);
+  /** Ville d'origine connue, affichée pendant l'analyse suivante. */
+  const [sourceCity, setSourceCity] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentEntry[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('gt_recent') ?? '[]') as RecentEntry[];
@@ -401,6 +404,8 @@ export default function App() {
         } else {
           setData(res);
           setPanelOpen(true);
+          // La ville d'origine, réutilisée pour l'écran d'analyse suivant.
+          if (res.client?.city) setSourceCity(res.client.city);
           // La démonstration ne doit pas polluer l'historique de l'utilisateur.
           if (!options?.demo) {
             void fetch('/api/recent', {
@@ -534,17 +539,18 @@ export default function App() {
   }, []);
 
   if (!data?.result) {
-    // Pendant l'ouverture, on n'affiche pas l'écran de collage (il serait
-    // remplacé aussitôt par la démo).
-    if (booting) {
+    // Pendant l'ouverture et pendant une analyse, l'écran d'attente remplace
+    // l'écran de collage (sinon il apparaîtrait puis serait remplacé aussitôt).
+    if (booting || busy) {
       return (
         <div className="app">
           <div className="brand">
             Route<span>Scope</span>
           </div>
-          <div className="paste">
-            <p>{t('paste.analyzing')}</p>
-          </div>
+          <Loading
+            target={booting ? DEMO_TARGET : guessTarget(lastText)}
+            source={sourceCity}
+          />
         </div>
       );
     }
