@@ -78,27 +78,33 @@ export interface TimelineState {
   year: number;
   min: number;
   max: number;
-  playing: boolean;
+playing: boolean;
   ready: boolean;
   /** Vrai quand on est sur l'année courante : le réseau est complet. */
   atEnd: boolean;
+  /** Multiplicateur de vitesse de lecture (1 ou 2). */
+  speed: number;
   setYear: (year: number) => void;
   play: () => void;
   pause: () => void;
   toggle: () => void;
+  /** Alterne lecture normale et lecture ×2. */
+  toggleSpeed: () => void;
   step: (years: number) => void;
   first: () => void;
   last: () => void;
 }
 
-/** Intervalle entre deux années pendant la lecture (ms). */
-/** Intervalle entre deux années pendant la lecture (ms). */
+/** Intervalle entre deux années pendant la lecture (ms), à vitesse normale. */
 const FRAME_MS = 5000;
+/** Vitesses proposées, en multiplicateurs. */
+const SPEEDS = [1, 2] as const;
 
 export function useTimeline(): TimelineState {
   const [timeline, setTimeline] = useState<CableTimeline | null>(cache);
   const [year, setYearState] = useState<number>(cache?.max ?? 2026);
   const [playing, setPlaying] = useState(false);
+  const [speed, setSpeed] = useState<number>(1);
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
@@ -139,7 +145,7 @@ export function useTimeline(): TimelineState {
       setPlaying(false);
       return;
     }
-    const id = window.setInterval(() => {
+const id = window.setInterval(() => {
       setYearState((current) => {
         if (current >= timeline.max) {
           setPlaying(false);
@@ -147,9 +153,9 @@ export function useTimeline(): TimelineState {
         }
         return current + 1;
       });
-    }, FRAME_MS);
+    }, FRAME_MS / speed);
     return () => window.clearInterval(id);
-  }, [playing, timeline, year]);
+  }, [playing, timeline, year, speed]);
 
   const play = useCallback(() => {
     if (!timeline) return;
@@ -179,7 +185,15 @@ export function useTimeline(): TimelineState {
     setYearState(timeline.max);
   }, [stop, timeline]);
 
-  useEffect(() => () => stop(), [stop]);
+useEffect(() => () => stop(), [stop]);
+
+  /** Alterne 1× et 2× sans interrompre la lecture. */
+  const toggleSpeed = useCallback(() => {
+    setSpeed((current) => {
+      const at = SPEEDS.indexOf(current as (typeof SPEEDS)[number]);
+      return SPEEDS[(at + 1) % SPEEDS.length]!;
+    });
+  }, []);
 
   return {
     year,
@@ -188,10 +202,12 @@ export function useTimeline(): TimelineState {
     playing,
     ready: timeline !== null,
     atEnd: timeline ? year >= timeline.max : true,
+    speed,
     setYear,
     play,
     pause: stop,
     toggle: () => (playing ? stop() : play()),
+    toggleSpeed,
     step,
     first,
     last,

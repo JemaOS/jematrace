@@ -756,32 +756,6 @@ button.ghost {
  * « libellé / valeur », atterrissages en pastilles cliquables, propriétaires
  * en étiquettes.
  */
-/* Vignette du tracé, en tête de fiche (comme la carte de référence). */
-.detail-cable-shape {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 74px;
-  margin-bottom: 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 70%, var(--panel));
-}
-
-.detail-cable-shape svg {
-  width: 168px;
-  height: 60px;
-  overflow: visible;
-}
-
-.detail-cable-shape.is-new {
-  border-color: color-mix(in srgb, #ffa500 40%, transparent);
-}
-
-.detail-cable-shape.is-decom {
-  border-color: color-mix(in srgb, #f85149 40%, transparent);
-}
 .detail-section {
   margin-bottom: 16px;
 }
@@ -793,13 +767,6 @@ button.ghost {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
-}
-
-.detail-description {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: var(--text);
 }
 
 .detail-meta-list {
@@ -1105,27 +1072,75 @@ button.ghost {
   user-select: none;
 }
 
-/* Filet de progression : la position dans l'histoire, sans capter les clics. */
+/*
+ * Filet de progression, façon lecteur vidéo : une zone cliquable haute de
+ * 16 px (facile à viser au doigt) avec le trait visuel de 2 px en bas. Un
+ * clic ou un glissement saute directement à l'année visée.
+ */
 .timeline-track {
   position: absolute;
   left: 18px;
   right: 18px;
-  bottom: 4px;
+  bottom: 0;
+  height: 16px;
+  cursor: pointer;
+  touch-action: none;
+  outline: none;
+}
+
+/* Le rail gris, dessiné sous le curseur. */
+.timeline-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 3px;
   height: 2px;
   border-radius: 2px;
   background: var(--border);
-  overflow: hidden;
-  pointer-events: none;
+  transition: background 0.15s;
+}
+
+.timeline-track:hover::before,
+.timeline-track:focus-visible::before {
+  background: var(--border-strong);
 }
 
 .timeline-progress {
-  display: block;
-  height: 100%;
+  position: absolute;
+  left: 0;
+  bottom: 3px;
+  height: 2px;
   border-radius: 2px;
   background: linear-gradient(to right, var(--accent-deep), var(--accent-soft));
   box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 70%, transparent);
   transition: width 0.18s linear;
+  pointer-events: none;
 }
+
+/* Poignée : apparaît au survol, comme un lecteur vidéo. */
+.timeline-track::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: var(--seek, 0%);
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 80%, transparent);
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+.timeline-track:hover::after,
+.timeline-track:focus-visible::after,
+.timeline-track.dragging::after {
+  opacity: 1;
+}
+
 
 .timeline-row {
   display: flex;
@@ -1154,6 +1169,37 @@ button.ghost {
   color: var(--text);
 }
 
+/* Bouton de vitesse (1× / 2×), à droite des contrôles. */
+.tl-speed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-head);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.tl-speed:hover,
+.tl-speed:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Lecture ×2 : bouton accentué, pour voir d'un coup d'œil qu'on est en accéléré. */
+.tl-speed.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
 .tl-play {
   display: inline-flex;
   align-items: center;
@@ -1181,9 +1227,14 @@ button.ghost {
   background: var(--accent-deep);
 }
 
+/* Année affichée : éditable, comme un champ de lecteur vidéo. */
 .tl-year {
   min-width: 62px;
   margin-left: 6px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
   font-family: var(--font-head);
   font-size: 24px;
   font-weight: 800;
@@ -1191,8 +1242,34 @@ button.ghost {
   color: var(--accent);
   text-align: right;
   font-variant-numeric: tabular-nums;
+  cursor: text;
+  transition: border-color 0.15s, background 0.15s;
 }
 
+.tl-year:hover,
+.tl-year:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--surface);
+  outline: none;
+}
+
+/* Champ de saisie de l'année : même typographie que l'affichage. */
+.tl-year-input {
+  width: 88px;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-head);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
 /* Réseau complet : l'année reste lisible mais moins criarde. */
 .tl-year.end {
   color: var(--text);
@@ -1211,7 +1288,38 @@ button.ghost {
     height: 30px;
   }
 
-  .tl-play {
+  /* Bouton de vitesse (1× / 2×), à droite des contrôles. */
+.tl-speed {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-head);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.tl-speed:hover,
+.tl-speed:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Lecture ×2 : bouton accentué, pour voir d'un coup d'œil qu'on est en accéléré. */
+.tl-speed.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+.tl-play {
     width: 40px;
     height: 40px;
   }

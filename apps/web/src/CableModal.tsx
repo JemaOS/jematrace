@@ -1,15 +1,15 @@
 import { useEffect } from 'react';
 
-import { useCableInfo, useCableShape } from './cableMeta';
+import { useCableInfo } from './cableMeta';
 import { useT } from './i18n';
-import { cablePalette } from './looks';
 
 /**
  * Fiche d'un câble sous-marin.
  *
  * Structure reprise de la carte de référence : en-tête avec le nom et un badge
- * d'état, puis des sections « Aperçu », « Spécifications », « Points
- * d'atterrissage », « Propriétaires » et « Liens ».
+ * d'état, puis « Spécifications », « Points d'atterrissage », « Propriétaires »
+ * et « Liens ». Aucun texte de la source (anglais) n'est affiché : les
+ * descriptions TeleGeography ne sont pas traduites, elles sont donc omises.
  *
  * Les points d'atterrissage sont cliquables : ils ramènent la carte sur la
  * ville concernée. Tous les libellés passent par l'i18n (FR par défaut).
@@ -29,7 +29,6 @@ export function CableModal({
 }) {
   const { t } = useT();
   const { info, ready } = useCableInfo(name);
-  const shape = useCableShape(name);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -41,10 +40,6 @@ export function CableModal({
 
   const retired = info ? info.end !== null && info.end <= year : false;
   const isNew = info ? !retired && info.year === year : false;
-  /** Couleur de l'aperçu : celle de l'état du câble sur la carte. */
-  const shapeColor = cablePalette(false)[
-    retired ? 'decommissioned' : isNew ? 'isNew' : 'regular'
-  ].color;
   /** Technologie : fournie par la source, sinon déduite de l'année. */
   const technology = ((): string | null => {
     if (!info) return null;
@@ -90,22 +85,6 @@ export function CableModal({
 
           {info && (
             <>
-              {/* Vignette du tracé : on reconnaît le câble d'un coup d'œil. */}
-              {shape && (
-                <div className={`detail-cable-shape${isNew ? ' is-new' : ''}${retired ? ' is-decom' : ''}`}>
-                  <svg viewBox="0 0 120 60" role="img" aria-label={info.name}>
-                    <path d={shape} fill="none" stroke={shapeColor} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              )}
-
-              {info.description && (
-                <section className="detail-section">
-                  <div className="detail-section-title">{t('cable.overview')}</div>
-                  <p className="detail-description">{info.description}</p>
-                </section>
-              )}
-
               <section className="detail-section">
                 <div className="detail-section-title">{t('cable.specs')}</div>
                 <div className="detail-meta-list">
@@ -154,12 +133,16 @@ export function CableModal({
                           type="button"
                           className="detail-pill"
                           disabled={!canGo}
-                          title={lp.country ?? undefined}
+                          // Libellé complet en infobulle (le pays de la source
+                          // est en anglais : on ne l'affiche pas à l'écran).
+                          title={lp.name}
                           onClick={() => {
                             if (canGo) onLanding!(lp.lat!, lp.lon!);
                           }}
                         >
-                          {lp.name}
+                          {/* Seule la ville est affichée : « Port Said, Egypt »
+                              contient un nom de pays anglais. */}
+                          {lp.name.split(',')[0]!.trim()}
                         </button>
                       );
                     })}

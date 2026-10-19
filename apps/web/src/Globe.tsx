@@ -330,8 +330,6 @@ function CableLayer({
   const regular = useMemo(() => new THREE.Color(palette.regular.color), [palette]);
   const isNewColor = useMemo(() => new THREE.Color(palette.isNew.color), [palette]);
   const decommissioned = useMemo(() => new THREE.Color(palette.decommissioned.color), [palette]);
-  const selectedColor = useMemo(() => new THREE.Color(palette.selected.color), [palette]);
-
   /** Sommets d'un câble, interpolés sur la sphère. */
   const pushCable = (positions: number[], cable: CableWorld['cables'][number]) => {
     for (const line of cable.lines) {
@@ -469,23 +467,46 @@ function CableLayer({
 
   /**
   /**
-   * Câble mis en avant (sélection ou survol) : tracé blanc par-dessus les
-   * autres, pour ne pas le confondre avec un câble cyan ou orange.
+   * Câble mis en avant (survol prioritaire, sinon sélection) : un **tube**
+   * blanc posé sur le tracé.
+   *
+   * Pourquoi un tube et non une ligne : en WebGL, linewidth est ignoré par
+   * toutes les implémentations courantes — un trait blanc d'un pixel se
+   * confond avec les câbles cyan et ne sert à rien. Le tube est épais, donc
+   * visible, et il est seul (un câble à la fois) : le coût reste négligeable.
    */
-  const highlight = selected ?? hovered;
-  const selectedBatch = useMemo(() => {
+  (window as unknown as { __jmCL?: unknown }).__jmCL = { hovered, selected, hasData: !!data };
+  const highlight = hovered ?? selected;
+  const highlightGeometry = useMemo(() => {
     if (!data || !highlight) return null;
     const cable = data.cables.find((c) => c.name === highlight);
     if (!cable) return null;
     if (cable.year > year || (cable.end !== null && cable.end < year)) return null;
-    return makeBatch([cable]);
+
+    const white = new THREE.Color('#ffffff');
+    const parts: Array<{ geo: THREE.BufferGeometry; color: THREE.Color; arc: number }> = [];
+    for (const line of cable.lines) {
+      if (line.length < 2) continue;
+      // Points posés un peu au-dessus de la surface du globe.
+      const pts = line.map(([lon, lat]) => latLonToVec3(lat, lon, R + 1.4));
+      const curve = new THREE.CatmullRomCurve3(pts);
+      const tubular = Math.max(8, Math.min(400, pts.length * 2));
+      parts.push({ geo: new THREE.TubeGeometry(curve, tubular, 1.6, 8, false), color: white, arc: 0 });
+    }
+    if (parts.length === 0) return null;
+    const merged = mergeTubes(parts);
+    (window as unknown as { __jmHighlight?: unknown }).__jmHighlight = {
+      name: highlight,
+      verts: merged.getAttribute('position')?.count ?? 0,
+      hasColor: !!merged.getAttribute('color'),
+    };
+    return merged;
   }, [data, highlight, year]);
 
   useEffect(() => {
-    if (!selectedBatch) return;
-    return () => selectedBatch.geometry.dispose();
-  }, [selectedBatch]);
-
+    if (!highlightGeometry) return;
+    return () => highlightGeometry.dispose();
+  }, [highlightGeometry]);
   // Seuil de raycast plus large : les câbles sont des lignes d'épaisseur nulle.
   const { raycaster } = useThree();
   useEffect(() => {
@@ -567,21 +588,36 @@ function CableLayer({
       )}
 
       {/* Câble sélectionné : blanc, au-dessus du réseau. */}
-      {selectedBatch && (
-        <lineSegments geometry={selectedBatch.geometry} renderOrder={2}>
-          <lineBasicMaterial
-            color={selectedColor}
+      {/* Câble survolé ou sélectionné : tube blanc épais, au-dessus du réseau. */}
+      {highlightGeometry && (
+        <mesh geometry={highlightGeometry} renderOrder={2}>
+          <meshBasicMaterial
+            vertexColors
             transparent
             opacity={palette.selected.opacity}
             depthWrite={false}
             toneMapped={false}
           />
-        </lineSegments>
+        </mesh>
       )}
 
       {/* Zone de clic invisible : le nom du câble s'ouvre au clic. */}
       {picking && (
         <lineSegments
+          // Survol : le câble passe en blanc et son nom s'affiche près du
+          // curseur, comme sur la carte 2D.
+          onPointerMove={(e) => {
+            if (!onHover) return;
+            e.stopPropagation();
+            const idx = e.intersections?.[0]?.index;
+            if (idx === undefined) {
+              onHover(null);
+              return;
+            }
+            const name = picking.owners[Math.floor(idx / 2)];
+            onHover(name ?? null, { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY });
+          }}
+          onPointerOut={() => onHover?.(null)}
           geometry={picking.geometry}
           renderOrder={3}
           onClick={(e) => {
@@ -1149,6 +1185,8 @@ function Camera({ focus }: { focus: THREE.Vector3 | null }) {
   /** Position visée par la caméra, et premier cadrage déjà appliqué. */
   const target = useRef<THREE.Vector3 | null>(null);
   const settled = useRef(false);
+  /** Dernier cadrage appliqué, pour ne pas le rejouer à chaque rendu. */
+  const applied = useRef<THREE.Vector3 | null>(null);
 
   /**
    * Distance à laquelle le globe (atmosphère comprise) tient entièrement dans
@@ -1190,6 +1228,16 @@ function Camera({ focus }: { focus: THREE.Vector3 | null }) {
     // mobile — sans pour autant réduire le globe à un point.
     c.maxDistance = fitDistance * 1.6;
     c.minDistance = Math.max(260, R * 1.3);
+
+    /**
+     * Dès que l'utilisateur manipule le globe, on abandonne le cadrage
+     * automatique en cours. Sans cela, la caméra continuait de revenir vers la
+     * position de l'année pendant la rotation : le globe « résistait ».
+     */
+    c.addEventListener('start', () => {
+      target.current = null;
+    });
+
     c.update();
     controls.current = c;
     return () => c.dispose();
@@ -1207,6 +1255,19 @@ function Camera({ focus }: { focus: THREE.Vector3 | null }) {
       .applyAxisAngle(new THREE.Vector3(0, 0, 1), TILT)
       .multiplyScalar(distance);
     if (dir.length() < 1) dir.set(0, 120, 820);
+
+    /**
+     * On ne rejoue pas un cadrage identique.
+     *
+     * `focus` peut être un nouvel objet de mêmes coordonnées à chaque rendu
+     * (nouvelle liste de sauts, nouvel état de survol…). Sans ce test, l'effet
+     * remettait `target` à chaque fois et la caméra revenait en arrière dès
+     * qu'on essayait de tourner le globe.
+     */
+    const previous = applied.current;
+    if (previous && previous.distanceToSquared(dir) < 4) return;
+    applied.current = dir.clone();
+
     // Transition douce : on vise la nouvelle position et `useFrame` y glisse la
     // caméra. Un saut sec toutes les cinq secondes serait désagréable.
     target.current = dir;
@@ -1300,9 +1361,6 @@ function Scene({ hops, look, showCities, showCables, world, year, focusPoint, li
   }, [located]);
 
   const arcGeometries = useArcGeometries(arcs);
-  /** Câble survolé et position du curseur : affiche son nom à côté du pointeur. */
-  const [cableHover, setCableHover] = useState<{ name: string; x: number; y: number } | null>(null);
-
 
   return (
     <>
@@ -1318,11 +1376,11 @@ function Scene({ hops, look, showCities, showCables, world, year, focusPoint, li
               light={light}
               selected={selected}
               onSelect={onCable}
-              hovered={cableHover?.name ?? null}
-              onHover={(name, at) =>
-                setCableHover(name && at ? { name, x: at.x, y: at.y } : null)
-              }
+              hovered={hoveredCable}
+              onHover={onCableHover}
             />
+
+
             {/* Particules circulant sur les câbles : mouvement continu, donc
                 coupé sur mobile pour alléger le GPU. */}
             {wide && <CableParticles year={year} />}
@@ -1508,8 +1566,8 @@ gl={{ antialias: false, alpha: false, stencil: false, powerPreference: 'high-per
         <div
           className="globe-tip cable"
           style={{
-            left: Math.min(Math.max(12, cableHover.x + 14), Math.max(12, window.innerWidth - 220)),
-            top: Math.min(Math.max(12, cableHover.y - 34), Math.max(12, window.innerHeight - 40)),
+            left: Math.min(Math.max(12, cableHover.x + 22), Math.max(12, window.innerWidth - 220)),
+            top: Math.min(Math.max(12, cableHover.y - 58), Math.max(12, window.innerHeight - 40)),
           }}
         >
           <strong>{cableHover.name}</strong>
