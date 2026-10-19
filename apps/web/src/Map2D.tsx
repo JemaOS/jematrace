@@ -549,18 +549,17 @@ export function Map2D({
 
   /**
    * Vol vers les câbles de l'année : la carte « atterrit » sur ce qui vient
-   * d'être construit. On saute le tout premier passage (montage) pour laisser
-   * le cadrage du traceroute s'appliquer, et on ne bouge pas quand le réseau
-   * est complet (`focus` vaut alors `null`).
+   * d'être construit. On ne bouge qu'après une action de l'utilisateur sur la
+   * frise (`navigated`), pour ne pas écraser le cadrage du traceroute à
+   * l'ouverture ; et jamais quand le réseau est complet (`focus` = `null`).
    */
-  const focusSeen = useRef(false);
+  const initialYear = useRef(year);
+  const navigated = useRef(false);
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !focus) return;
-    if (!focusSeen.current) {
-      focusSeen.current = true;
-      return;
-    }
+    if (!map) return;
+    if (year !== initialYear.current) navigated.current = true;
+    if (!navigated.current || !focus) return;
     const bounds = L.latLngBounds(
       [focus.south, focus.west],
       [focus.north, focus.east],
@@ -572,7 +571,7 @@ export function Map2D({
       return;
     }
     map.flyToBounds(bounds, { padding: [60, 60], maxZoom: 5, duration: 1.4, easeLinearity: 0.25 });
-  }, [focus]);
+  }, [focus, year]);
 
   // Les câbles restent visibles dans les deux modes : en Topo, la route les
   // suit, et le réseau permet de voir par où elle passe.

@@ -97,7 +97,7 @@ const FRAME_MS = 5000;
 
 export function useTimeline(): TimelineState {
   const [timeline, setTimeline] = useState<CableTimeline | null>(cache);
-  const [year, setYearState] = useState<number>(cache?.min ?? 1858);
+  const [year, setYearState] = useState<number>(cache?.max ?? 2026);
   const [playing, setPlaying] = useState(false);
   const timer = useRef<number | null>(null);
 
@@ -106,9 +106,10 @@ export function useTimeline(): TimelineState {
     void loadCableTimeline().then((t) => {
       if (!alive) return;
       setTimeline(t);
-      // La frise démarre toujours sur le premier câble, puis progresse par
-      // ordre croissant : c'est l'histoire du réseau qui se construit.
-      setYearState((current) => (current === 0 ? t.min : Math.min(current, t.max)));
+      // À l'ouverture, on montre le réseau complet : une carte vide en 1858
+      // donnerait l'impression que les câbles ont disparu. La lecture, elle,
+      // repart toujours de 1858 et progresse par ordre croissant.
+      setYearState((current) => (current === 0 ? t.max : Math.min(current, t.max)));
     });
     return () => {
       alive = false;
@@ -267,11 +268,31 @@ export function useYearFocus(year: number): YearFocus | null {
     };
   }, []);
 
-  return useMemo(() => {
-    if (!data || !timeline || year >= timeline.max) return null;
+/** Câbles indexés par année de mise en service (construit une fois). */
+  const index = useMemo(() => {
+    if (!data) return null;
+    const byYear = new Map<number, CableWorld['cables']>();
+    for (const cable of data.cables) {
+      const list = byYear.get(cable.year) ?? [];
+      list.push(cable);
+      byYear.set(cable.year, list);
+    }
+    return byYear;
+  }, [data]);
 
-    const cables = data.cables.filter((c) => c.year === year);
-    if (cables.length === 0) return null;
+  return useMemo(() => {
+    if (!index || !timeline || year >= timeline.max) return null;
+
+    // Toutes les années ne voient pas de câble mis en service (1859, 1860…).
+    // On retombe alors sur l'année connue la plus proche en arrière : chaque
+    // clic amène ainsi la carte sur le réseau tel qu'il est cette année-là.
+    let at = year;
+    let cables = index.get(at);
+    while (!cables && at > timeline.min) {
+      at -= 1;
+      cables = index.get(at);
+    }
+    if (!cables || cables.length === 0) return null;
 
     // Moyenne des vecteurs unitaires : la longitude reste juste même pour un
     // câble qui traverse l'antiméridien (Tokyo–Los Angeles).
@@ -307,5 +328,5 @@ export function useYearFocus(year: number): YearFocus | null {
     const lon = (Math.atan2(y, x) * 180) / Math.PI;
 
     return { lat, lon, south, west, north, east, count: cables.length };
-  }, [data, timeline, year]);
+  }, [index, timeline, year]);
 }
