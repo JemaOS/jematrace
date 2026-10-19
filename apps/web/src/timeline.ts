@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { loadCableMeta } from './cableMeta';
+import { loadCables, type CableWorld } from './world';
 
 /**
  * Frise chronologique des câbles sous-marins.
@@ -91,11 +92,12 @@ export interface TimelineState {
 }
 
 /** Intervalle entre deux années pendant la lecture (ms). */
-const FRAME_MS = 400;
+/** Intervalle entre deux années pendant la lecture (ms). */
+const FRAME_MS = 5000;
 
 export function useTimeline(): TimelineState {
   const [timeline, setTimeline] = useState<CableTimeline | null>(cache);
-  const [year, setYearState] = useState<number>(cache?.max ?? 0);
+  const [year, setYearState] = useState<number>(cache?.min ?? 1858);
   const [playing, setPlaying] = useState(false);
   const timer = useRef<number | null>(null);
 
@@ -104,8 +106,9 @@ export function useTimeline(): TimelineState {
     void loadCableTimeline().then((t) => {
       if (!alive) return;
       setTimeline(t);
-      // Premier chargement : on affiche le réseau complet.
-      setYearState((current) => (current === 0 ? t.max : Math.min(current, t.max)));
+      // La frise démarre toujours sur le premier câble, puis progresse par
+      // ordre croissant : c'est l'histoire du réseau qui se construit.
+      setYearState((current) => (current === 0 ? t.min : Math.min(current, t.max)));
     });
     return () => {
       alive = false;
@@ -226,4 +229,83 @@ export function useYearSummary(year: number): string | null {
     };
   }, []);
   return summaries?.[String(year)]?.description ?? null;
+}
+
+/* ---------------------------------------------------------- cadrage annuel */
+
+export interface YearFocus {
+  /** Centre du réseau de l'année (moyenne sphérique, robuste à l'antiméridien). */
+  lat: number;
+  lon: number;
+  /** Emprise des câbles de l'année, en degrés. */
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+  /** Nombre de câbles mis en service cette année-là. */
+  count: number;
+}
+
+/**
+ * Câbles mis en service pour l'année courante, avec leur emprise.
+ *
+ * Sert à faire « atterrir » la carte et le globe sur le câble dont on parle.
+ * Renvoie `null` sur la dernière année : le réseau est complet, il n'y a pas
+ * de câble particulier à montrer (on garde le cadrage du traceroute).
+ */
+export function useYearFocus(year: number): YearFocus | null {
+  const timeline = useCableTimeline();
+  const [data, setData] = useState<CableWorld | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    void loadCables().then((c) => {
+      if (alive) setData(c);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return useMemo(() => {
+    if (!data || !timeline || year >= timeline.max) return null;
+
+    const cables = data.cables.filter((c) => c.year === year);
+    if (cables.length === 0) return null;
+
+    // Moyenne des vecteurs unitaires : la longitude reste juste même pour un
+    // câble qui traverse l'antiméridien (Tokyo–Los Angeles).
+    let x = 0;
+    let y = 0;
+    let z = 0;
+    let n = 0;
+    let south = 90;
+    let north = -90;
+    let west = 180;
+    let east = -180;
+
+    for (const cable of cables) {
+      for (const line of cable.lines) {
+        for (const [lon, lat] of line) {
+          const phi = (lat * Math.PI) / 180;
+          const lambda = (lon * Math.PI) / 180;
+          x += Math.cos(phi) * Math.cos(lambda);
+          y += Math.cos(phi) * Math.sin(lambda);
+          z += Math.sin(phi);
+          n += 1;
+          south = Math.min(south, lat);
+          north = Math.max(north, lat);
+          west = Math.min(west, lon);
+          east = Math.max(east, lon);
+        }
+      }
+    }
+
+    if (n === 0) return null;
+
+    const lat = (Math.atan2(z, Math.hypot(x, y)) * 180) / Math.PI;
+    const lon = (Math.atan2(y, x) * 180) / Math.PI;
+
+    return { lat, lon, south, west, north, east, count: cables.length };
+  }, [data, timeline, year]);
 }

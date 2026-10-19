@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { InspectHop } from './api';
 import type { Basemap, Look } from './looks';
+import type { YearFocus } from './timeline';
 import { loadWorld, type WorldData } from './world';
 
 /**
@@ -206,6 +207,7 @@ export function Map2D({
   look,
   onCable,
   year,
+  focus,
 }: {
   hops: InspectHop[];
   showCables: boolean;
@@ -214,6 +216,8 @@ export function Map2D({
   onCable?: (name: string) => void;
   /** Année de la frise : seuls les câbles mis en service jusque-là sont visibles. */
   year: number;
+  /** Câbles de l'année : la carte vole vers leur emprise. */
+  focus?: YearFocus | null;
 }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
@@ -542,6 +546,33 @@ export function Map2D({
   useEffect(() => {
     applyYear();
   }, [applyYear]);
+
+  /**
+   * Vol vers les câbles de l'année : la carte « atterrit » sur ce qui vient
+   * d'être construit. On saute le tout premier passage (montage) pour laisser
+   * le cadrage du traceroute s'appliquer, et on ne bouge pas quand le réseau
+   * est complet (`focus` vaut alors `null`).
+   */
+  const focusSeen = useRef(false);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focus) return;
+    if (!focusSeen.current) {
+      focusSeen.current = true;
+      return;
+    }
+    const bounds = L.latLngBounds(
+      [focus.south, focus.west],
+      [focus.north, focus.east],
+    );
+    // Un câble qui traverse l'antiméridien donne une emprise de 360° : on vise
+    // alors son centre, sinon la carte dézoomerait sur le monde entier.
+    if (focus.east - focus.west > 180) {
+      map.flyTo([focus.lat, focus.lon], 4, { duration: 1.4 });
+      return;
+    }
+    map.flyToBounds(bounds, { padding: [60, 60], maxZoom: 5, duration: 1.4, easeLinearity: 0.25 });
+  }, [focus]);
 
   // Les câbles restent visibles dans les deux modes : en Topo, la route les
   // suit, et le réseau permet de voir par où elle passe.

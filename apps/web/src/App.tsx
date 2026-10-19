@@ -5,7 +5,7 @@ import { gradientCSS } from '@jematrace/seg-speed';
 import { detectClientIp, inspect, type InspectHop, type InspectResponse } from './api';
 import { CableModal } from './CableModal';
 import { TimelineBar } from './TimelineBar';
-import { useTimeline } from './timeline';
+import { useTimeline, useYearFocus } from './timeline';
 import { DEMO_ANCHOR, DEMO_TARGET, DEMO_TRACE } from './demo';
 import { guessTarget, Loading } from './Loading';
 import { useT } from './i18n';
@@ -321,6 +321,8 @@ export default function App() {
   const [prefs, setPrefs] = useState<Prefs>(() => readPrefs());
   /** Frise des câbles : année courante, lecture, bornes. */
   const timeline = useTimeline();
+  /** Câbles de l'année courante : cadrage automatique sur la carte et le globe. */
+  const yearFocus = useYearFocus(timeline.year);
   const [draft, setDraft] = useState<Prefs>(() => readPrefs());
 
   /**
@@ -692,9 +694,23 @@ export default function App() {
       <div className="canvas-wrap">
         <Suspense fallback={<div className="spinner">Chargement du globe...</div>}>
         {prefs.view === '2d' ? (
-          <Map2D hops={mapHopsWithClient} showCables={prefs.cables} look={look} onCable={setCableName} year={timeline.year} />
+          <Map2D
+            hops={mapHopsWithClient}
+            showCables={prefs.cables}
+            look={look}
+            onCable={setCableName}
+            year={timeline.year}
+            focus={yearFocus}
+          />
         ) : (
-          <Globe hops={globeHops} look={look} showCities={prefs.cities} showCables={prefs.cables} year={timeline.year} />
+          <Globe
+            hops={globeHops}
+            look={look}
+            showCities={prefs.cities}
+            showCables={prefs.cables}
+            year={timeline.year}
+            focusPoint={yearFocus}
+          />
         )}
         </Suspense>
       </div>

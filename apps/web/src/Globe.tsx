@@ -949,6 +949,9 @@ function Stars({ color }: { color: string }) {
 function Camera({ focus }: { focus: THREE.Vector3 | null }) {
   const { camera, gl, size } = useThree();
   const controls = useRef<OrbitControls | null>(null);
+  /** Position visée par la caméra, et premier cadrage déjà appliqué. */
+  const target = useRef<THREE.Vector3 | null>(null);
+  const settled = useRef(false);
 
   /**
    * Distance à laquelle le globe (atmosphère comprise) tient entièrement dans
@@ -1007,12 +1010,31 @@ function Camera({ focus }: { focus: THREE.Vector3 | null }) {
       .applyAxisAngle(new THREE.Vector3(0, 0, 1), TILT)
       .multiplyScalar(distance);
     if (dir.length() < 1) dir.set(0, 120, 820);
-    camera.position.copy(dir);
-    camera.lookAt(0, 0, 0);
-    controls.current?.update();
+    // Transition douce : on vise la nouvelle position et `useFrame` y glisse la
+    // caméra. Un saut sec toutes les cinq secondes serait désagréable.
+    target.current = dir;
+    if (!settled.current) {
+      camera.position.copy(dir);
+      camera.lookAt(0, 0, 0);
+      controls.current?.update();
+      settled.current = true;
+    }
   }, [focus, camera, fitDistance, size.width, size.height]);
 
-  useFrame(() => controls.current?.update());
+  useFrame((_, delta) => {
+    const goal = target.current;
+    if (goal) {
+      // Interpolation indépendante de la cadence (~0,9 s pour arriver).
+      const k = Math.min(1, delta * 3.2);
+      camera.position.lerp(goal, k);
+      camera.lookAt(0, 0, 0);
+      if (camera.position.distanceTo(goal) < 1) {
+        camera.position.copy(goal);
+        target.current = null;
+      }
+    }
+    controls.current?.update();
+  });
   return null;
 }
 
@@ -1023,17 +1045,22 @@ interface GlobeProps {
   showCables: boolean;
   /** Année de la frise : seuls les câbles mis en service jusque-là sont visibles. */
   year: number;
+  /** Câbles de l'année : le globe tourne vers eux. */
+  focusPoint?: { lat: number; lon: number } | null;
 }
 
-function Scene({ hops, look, showCities, showCables, world, year, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
+function Scene({ hops, look, showCities, showCables, world, year, focusPoint, onHover }: GlobeProps & { world: WorldData | null; onHover?: (hop: InspectHop | null, at?: { x: number; y: number }) => void }) {
   const wide = useThree((s) => s.size.width) >= 700;
   const located = useMemo(() => hops.filter((h) => h.lat !== null && h.lon !== null), [hops]);
 
   const focus = useMemo(() => {
+    // La frise est prioritaire : quand on rejoue l'histoire, le globe se tourne
+    // vers le câble de l'année plutôt que vers le milieu du traceroute.
+    if (focusPoint) return latLonToVec3(focusPoint.lat, focusPoint.lon, 1);
     if (located.length === 0) return null;
     const sum = located.reduce((acc, h) => acc.add(latLonToVec3(h.lat!, h.lon!, 1)), new THREE.Vector3());
     return sum.divideScalar(located.length);
-  }, [located]);
+  }, [located, focusPoint]);
 
   const markers = useMemo(
     () =>
