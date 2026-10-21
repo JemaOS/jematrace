@@ -5,7 +5,14 @@
 
 export type ViewMode = '3d' | '2d';
 export type RouteMode = 'topo' | 'line';
-export type Theme = 'dark' | 'light';
+/**
+ * Préférence de thème. `system` suit le réglage de l'OS (Windows, macOS,
+ * ChromeOS, iOS, Android) et réagit à ses changements ; `dark` et `light`
+ * sont des choix explicites qui ne suivent plus le système.
+ */
+export type Theme = 'system' | 'dark' | 'light';
+/** Thème réellement appliqué, une fois `system` résolu. */
+export type ResolvedTheme = 'dark' | 'light';
 
 export interface Prefs {
   /** Vue par défaut. Cookie `gt2_view` : `3d` | `2d`. */
@@ -20,7 +27,7 @@ export interface Prefs {
   cities: boolean;
   /** Mode geek. Cookie `gt2_geek`. */
   geek: boolean;
-  /** Thème de l'interface. Cookie `gt2_theme` : `dark` | `light`. */
+  /** Thème de l'interface. Cookie `gt2_theme` : `system` | `dark` | `light`. */
   theme: Theme;
 }
 
@@ -33,7 +40,8 @@ export const DEFAULT_PREFS: Prefs = {
   // l'utilisateur les active s'il le souhaite.
   cities: false,
   geek: false,
-  theme: 'dark',
+  // Par défaut, on suit le thème clair/sombre du système.
+  theme: 'system',
 };
 
 const PREFIX = 'gt2_';
@@ -49,6 +57,7 @@ function writeCookie(name: string, value: string): void {
 
 /** Lit les préférences depuis les cookies, en retombant sur les valeurs par défaut. */
 export function readPrefs(): Prefs {
+  const themePref = readCookie(`${PREFIX}theme`);
   return {
     view: readCookie(`${PREFIX}view`) === '2d' ? '2d' : '3d',
     route: readCookie(`${PREFIX}route`) === 'line' ? 'line' : 'topo',
@@ -56,7 +65,8 @@ export function readPrefs(): Prefs {
     cables: readCookie(`${PREFIX}cables`) !== '0',
     cities: readCookie(`${PREFIX}cities`) === '1',
     geek: readCookie(`${PREFIX}geek`) === '1',
-    theme: readCookie(`${PREFIX}theme`) === 'light' ? 'light' : 'dark',
+    // Une valeur absente ou inconnue (première visite, ancien cookie) suit l'OS.
+    theme: themePref === 'light' || themePref === 'dark' ? themePref : 'system',
   };
 }
 

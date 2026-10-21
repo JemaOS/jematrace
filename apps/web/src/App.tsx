@@ -14,7 +14,7 @@ const Globe = lazy(() => import('./Globe').then((m) => ({ default: m.Globe })));
 import { cablePalette, LOOKS, lookById, type CablePalette } from './looks';
 const Map2D = lazy(() => import('./Map2D').then((m) => ({ default: m.Map2D })));
 import { Panel, type RecentEntry } from './Panel';
-import { DEFAULT_PREFS, readPrefs, writePrefs, type Prefs, type RouteMode, type Theme } from './prefs';
+import { DEFAULT_PREFS, readPrefs, writePrefs, type Prefs, type ResolvedTheme, type RouteMode, type Theme } from './prefs';
 
 const PLACEHOLDER = `traceroute to google.com (142.250.74.110), 30 hops max
  1  192.168.1.1 (192.168.1.1)  1.234 ms
@@ -110,6 +110,9 @@ function PreferencesModal({
           <b>{t('prefs.theme')}</b>
         </span>
         <div className="seg">
+          <button className={draft.theme === 'system' ? 'on' : ''} onClick={() => setDraft({ ...draft, theme: 'system' })}>
+            {t('prefs.themeSystem')}
+          </button>
           <button className={draft.theme === 'dark' ? 'on' : ''} onClick={() => setDraft({ ...draft, theme: 'dark' })}>
             {t('prefs.themeDark')}
           </button>
@@ -319,6 +322,30 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(() => readPrefs());
+  /**
+   * Thème du système, suivi en direct. `prefers-color-scheme` change quand
+   * l'utilisateur bascule Windows/macOS/ChromeOS en clair ou sombre, ou selon
+   * l'heure (mode nuit automatique) : l'interface doit suivre sans recharger.
+   */
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() =>
+    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const sync = () => setSystemTheme(media.matches ? 'dark' : 'light');
+    sync();
+    // `addEventListener` n'existe pas sur les anciens Safari.
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', sync);
+      return () => media.removeEventListener('change', sync);
+    }
+    media.addListener(sync);
+    return () => media.removeListener(sync);
+  }, []);
+
+  /** Thème effectif : la préférence explicite, sinon celui de l'OS. */
+  const resolvedTheme: ResolvedTheme = prefs.theme === 'system' ? systemTheme : prefs.theme;
   /** Frise des câbles : année courante, lecture, bornes. */
   const timeline = useTimeline();
   /** Câbles de l'année courante : cadrage automatique sur la carte et le globe. */
@@ -331,12 +358,12 @@ export default function App() {
    * premier rendu utile et suit la préférence (modale comme bouton du bandeau).
    */
   useEffect(() => {
-    document.documentElement.dataset.theme = prefs.theme;
+    document.documentElement.dataset.theme = resolvedTheme;
     // La barre du navigateur suit aussi le thème.
     document
       .querySelector('meta[name="theme-color"]')
-      ?.setAttribute('content', prefs.theme === 'light' ? '#eef2f7' : '#070b14');
-  }, [prefs.theme]);
+      ?.setAttribute('content', resolvedTheme === 'light' ? '#eef2f7' : '#070b14');
+  }, [resolvedTheme]);
   const [modal, setModal] = useState<'prefs' | 'method' | 'credits' | 'contact' | null>(null);
   /** Nom du câble dont la fiche est ouverte (clic sur un câble en 2D). */
   const [cableName, setCableName] = useState<string | null>(null);
@@ -671,17 +698,18 @@ ull = cadrage normal (traceroute / frise).
         <div className="topbar-right">
           <button
             className="theme-toggle"
-            title={prefs.theme === 'dark' ? t('nav.themeDark') : t('nav.themeLight')}
-            aria-label={prefs.theme === 'dark' ? t('nav.themeDark') : t('nav.themeLight')}
+            title={resolvedTheme === 'dark' ? t('nav.themeDark') : t('nav.themeLight')}
+            aria-label={resolvedTheme === 'dark' ? t('nav.themeDark') : t('nav.themeLight')}
             onClick={() => {
-              const theme: Theme = prefs.theme === 'dark' ? 'light' : 'dark';
+              // Bascule explicite : on quitte le suivi du système.
+              const theme: Theme = resolvedTheme === 'dark' ? 'light' : 'dark';
               const next = { ...prefs, theme };
               setPrefs(next);
               writePrefs(next);
             }}
           >
             {/* Soleil en thème sombre (action : passer en clair), lune sinon. */}
-            {prefs.theme === 'dark' ? (
+            {resolvedTheme === 'dark' ? (
               <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
                 <circle cx="12" cy="12" r="4.2" fill="currentColor" />
                 <g stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
