@@ -1126,16 +1126,16 @@ button.ghost {
     left: 50%;
     max-width: calc(100vw - 32px);
   }
+}
 
-  /*
-   * Pendant le récit annuel (anglais), le texte occupe le bas de la carte et
-   * passait sous les deux légendes du coin droit. Elles reviennent dès que
-   * l'année n'a plus de récit.
-   */
-  .app:has(.timeline-story) .cable-legend,
-  .app:has(.timeline-story) .legend {
-    opacity: 0;
-    visibility: hidden;
+/*
+ * Le récit annuel (anglais) est un bonus : sur les largeurs où il
+ * recouvrirait les légendes du coin droit, on le masque plutôt que de cacher
+ * les informations des câbles.
+ */
+@media (min-width: 681px) and (max-width: 1240px) {
+  .timeline-story {
+    display: none;
   }
 }
 
@@ -1155,12 +1155,23 @@ button.ghost {
 }
 
 /*
- * Écran très bas (pliables en paysage) : les légendes remontées passeraient
- * sur les contrôles du haut. On les masque, comme sur mobile.
+ * Écran très bas (pliables en paysage) : la légende remontée passerait sur
+ * les contrôles du haut. On la remet à sa place basse, entre les contrôles
+ * et la frise, et on masque seulement l'échelle de latence.
  */
 @media (min-width: 681px) and (max-height: 440px) {
-  .cable-legend,
+  .cable-legend {
+    bottom: 92px;
+  }
+
   .legend {
+    display: none;
+  }
+}
+
+/* Hauteur vraiment trop faible : même la légende des câbles ne tient plus. */
+@media (min-width: 681px) and (max-height: 334px) {
+  .cable-legend {
     display: none;
   }
 }
@@ -1477,20 +1488,25 @@ button.ghost {
     font-size: 14px;
   }
 
+  /* Panneau replié, le logo devient une pastille : elle doit rester étroite. */
+  .topbar--floating .inline-brand {
+    padding: 2px 6px;
+  }
+
   .topbar-right {
-    gap: 6px;
+    gap: 4px;
   }
 
   .topbar nav {
-    gap: 6px;
+    gap: 4px;
   }
 
   .lang-pill {
-    padding: 3px 6px;
+    padding: 2px 5px;
   }
 
   .topbar nav button {
-    padding: 3px 6px;
+    padding: 2px 5px;
     font-size: 10.5px;
   }
 
@@ -2614,5 +2630,57 @@ img.flag {
 @media (max-width: 480px) {
   .actions {
     grid-template-columns: 1fr;
+  }
+}
+
+/*
+ * Téléphone : la légende des câbles était masquée faute de place. On la
+ * réintroduit en bandeau compact d'une ligne, juste sous le volet (ou sous
+ * la barre de réouverture quand le volet est replié). Elle ne capte pas les
+ * clics destinés à la carte.
+ */
+@media (max-width: 680px) {
+  .cable-legend {
+    display: block;
+    top: calc(54dvh + 6px);
+    right: 10px;
+    bottom: auto;
+    max-width: calc(100vw - 20px);
+    padding: 4px 7px;
+    border-radius: 6px;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  .app--panel-closed .cable-legend {
+    top: 92px;
+  }
+
+  .cable-legend .title {
+    display: none;
+  }
+
+  .cable-legend ul {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 1px 8px;
+  }
+
+  .cable-legend li {
+    font-size: 10px;
+    gap: 4px;
+  }
+
+  .cable-legend i {
+    width: 12px;
+    flex: 0 0 12px;
+  }
+}
+
+/* Paysage : le bandeau passe sous les contrôles, dont la hauteur est mesurée. */
+@media (max-width: 680px) and (orientation: landscape) {
+  .cable-legend,
+  .app--panel-closed .cable-legend {
+    top: calc(56px + var(--controls-h, 106px) + 8px);
   }
 }
