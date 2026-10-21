@@ -132,6 +132,14 @@ body {
 /* ---------------------------------------------------------------- coller */
 
 .paste {
+  width: 100%;
+  /*
+   * `.app` est un conteneur flex (aussi sur la vue « coller ») : sans
+   * `min-width: 0`, la largeur mini du contenu (indices, sélecteur d'OS)
+   * imposait 358 px à la colonne et le formulaire débordait à droite sur
+   * un écran de 320 px, sans possibilité de défiler horizontalement.
+   */
+  min-width: 0;
   max-width: 760px;
   margin: 0 auto;
   padding: 56px 24px;
@@ -632,12 +640,39 @@ button.ghost {
 .topbar-right {
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 14px;
+  min-width: 0;
+}
+
+/*
+ * Les contrôles du bandeau ne doivent jamais être comprimés : à 320 px, la
+ * bascule de thème tombait à 18 px et « FR » perdait sa dernière lettre.
+ * Ils gardent leur taille ; c'est la gouttière qui se resserre (voir plus bas).
+ */
+.topbar .inline-brand,
+.theme-toggle,
+.lang-pill,
+.topbar nav button {
+  flex: 0 0 auto;
 }
 
 .inline-brand {
   position: static;
   font-weight: 800;
+}
+
+/*
+ * Panneau replié : le logo flotte alors au-dessus de la carte. Un fond opaque
+ * le rend lisible dans les deux thèmes — en thème clair, le texte sombre
+ * disparaissait purement et simplement sur le globe.
+ */
+.topbar--floating .inline-brand {
+  padding: 4px 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--overlay);
+  backdrop-filter: blur(6px);
 }
 
 .topbar nav {
@@ -732,6 +767,15 @@ button.ghost {
 .ctrl-right button.on {
   border-color: var(--accent);
   color: var(--accent-soft);
+}
+
+/*
+ * Quand le sélecteur passe seul à la ligne (téléphones, tablettes étroites),
+ * il occupe toute la largeur au lieu de laisser un trou de 150 px.
+ */
+.ctrl-right select {
+  flex: 1 1 140px;
+  min-width: 0;
 }
 
 .bottom-actions {
@@ -1001,6 +1045,13 @@ button.ghost {
 
 .row.check {
   justify-content: flex-start;
+  align-items: flex-start;
+}
+
+/* La case s'aligne sur le titre, pas au milieu du texte descriptif. */
+.row.check input {
+  margin-top: 4px;
+  flex: 0 0 auto;
 }
 
 .row.check span {
@@ -1058,6 +1109,60 @@ button.ghost {
   gap: 10px;
   max-width: min(720px, calc(100vw - 32px));
   pointer-events: none;
+}
+
+/*
+ * Sur grand écran, le volet (300 px) recouvre la moitié gauche : une frise
+ * centrée sur la fenêtre passait sous le volet sur les tablettes (768 px) et
+ * les pliables dépliés (720–768 px). On la centre sur la carte seule.
+ */
+@media (min-width: 681px) {
+  .timeline-stack {
+    left: calc(50% + 150px);
+    max-width: calc(100vw - 316px);
+  }
+
+  .app--panel-closed .timeline-stack {
+    left: 50%;
+    max-width: calc(100vw - 32px);
+  }
+
+  /*
+   * Pendant le récit annuel (anglais), le texte occupe le bas de la carte et
+   * passait sous les deux légendes du coin droit. Elles reviennent dès que
+   * l'année n'a plus de récit.
+   */
+  .app:has(.timeline-story) .cable-legend,
+  .app:has(.timeline-story) .legend {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/*
+ * Carte étroite (pliables dépliés, tablettes) : la frise et l'échelle de
+ * latence ne tiennent pas côte à côte en bas. On empile les deux légendes
+ * au-dessus de la frise au lieu de les laisser passer dessous.
+ */
+@media (min-width: 681px) and (max-width: 1023px) {
+  .legend {
+    bottom: 100px;
+  }
+
+  .cable-legend {
+    bottom: 184px;
+  }
+}
+
+/*
+ * Écran très bas (pliables en paysage) : les légendes remontées passeraient
+ * sur les contrôles du haut. On les masque, comme sur mobile.
+ */
+@media (min-width: 681px) and (max-height: 440px) {
+  .cable-legend,
+  .legend {
+    display: none;
+  }
 }
 
 /* Récit de l'année courante, comme la carte de référence. */
@@ -1291,11 +1396,143 @@ button.ghost {
   color: var(--text);
 }
 
+/*
+ * Très petits écrans (téléphone plié) : le bandeau du haut débordait de 18 px.
+ * Le logo, la bascule de thème, la langue et les deux liens ne tenaient pas sur
+ * 360 px. On resserre chaque élément plutôt que d'en masquer un.
+ */
+@media (max-width: 480px) {
+  .topbar {
+    padding: 0 10px;
+  }
+
+  .brand {
+    font-size: 15px;
+  }
+
+  .topbar-right {
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .theme-toggle {
+    width: 26px;
+    height: 26px;
+  }
+
+  .lang-pill {
+    padding: 3px 7px;
+    font-size: 12px;
+  }
+
+  .topbar nav button {
+    padding: 3px 7px;
+    font-size: 11px;
+  }
+
+  /* Sept contrôles plus l'année ne tiennent pas sur 360 px : on resserre. */
+  .timeline {
+    max-width: calc(100vw - 24px);
+  }
+
+  .tl-btn {
+    width: 26px;
+    height: 26px;
+  }
+
+  .tl-play {
+    width: 36px;
+    height: 36px;
+  }
+
+  .tl-speed {
+    min-width: 32px;
+    height: 24px;
+    padding: 0 6px;
+    font-size: 11.5px;
+  }
+
+  .tl-year {
+    min-width: 44px;
+    font-size: 18px;
+    padding: 2px 4px;
+  }
+
+  .timeline-row {
+    gap: 3px;
+  }
+}
+
+/*
+ * Très petits écrans (320 px) : la somme des contrôles du bandeau dépasse la
+ * largeur et les éléments se comprimaient (thème réduit à 18 px, « FR » coupé).
+ * On resserre les gouttières plutôt que les boutons.
+ */
+@media (max-width: 380px) {
+  .topbar {
+    padding: 0 8px;
+  }
+
+  .inline-brand {
+    font-size: 14px;
+  }
+
+  .topbar-right {
+    gap: 6px;
+  }
+
+  .topbar nav {
+    gap: 6px;
+  }
+
+  .lang-pill {
+    padding: 3px 6px;
+  }
+
+  .topbar nav button {
+    padding: 3px 6px;
+    font-size: 10.5px;
+  }
+
+  /* Le sélecteur d'apparence ne tenait pas à côté de son libellé. */
+  .row:not(.check) {
+    flex-wrap: wrap;
+  }
+
+  /* Les cases à cocher, elles, restent sur une seule ligne : avec `wrap`,
+     la case partait seule au-dessus de son libellé. */
+  .row.check {
+    flex-wrap: nowrap;
+  }
+
+  .row select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .modal-foot {
+    flex-wrap: wrap;
+  }
+}
+
 @media (max-width: 680px) {
   /* En vue empilée, les contrôles de carte occupent le bas : la frise passe
-     au-dessus d'eux. */
+     au-dessus d'eux. Sa position dépend de la hauteur réelle des contrôles
+     (mesurée par React dans `--controls-h`), sinon elle les recouvre. */
+  .timeline-stack {
+    bottom: calc(44px + var(--controls-h, 107px) + 14px);
+    max-width: calc(100vw - 24px);
+  }
+
+  /*
+   * Le récit annuel (anglais uniquement) est un bonus : sa hauteur variable
+   * remontait sur le volet dès que l'écran était un peu court.
+   */
+  .timeline-story {
+    display: none;
+  }
+
   .timeline {
-    bottom: 132px;
     padding: 5px 7px 7px;
   }
 
@@ -1304,38 +1541,7 @@ button.ghost {
     height: 30px;
   }
 
-  /* Bouton de vitesse (1× / 2×), à droite des contrôles. */
-.tl-speed {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 38px;
-  height: 26px;
-  padding: 0 7px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--muted);
-  font-family: var(--font-head);
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s, background 0.15s;
-}
-
-.tl-speed:hover,
-.tl-speed:focus-visible {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-/* Lecture ×2 : bouton accentué, pour voir d'un coup d'œil qu'on est en accéléré. */
-.tl-speed.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #ffffff;
-}
-.tl-play {
+  .tl-play {
     width: 40px;
     height: 40px;
   }
@@ -1631,6 +1837,12 @@ button.primary {
   /* Au-dessus de la frise et de son récit. */
   bottom: 172px;
   left: 316px;
+  /*
+   * Laisse la colonne des légendes (câbles et latence) à droite : à 768 px,
+   * l'infobulle s'étendait jusque sous la légende et son bouton de fermeture
+   * recouvrait « Retiré ».
+   */
+  right: 220px;
   z-index: 2000;
   background: var(--overlay);
   color: #f0883e;
@@ -1887,7 +2099,6 @@ button.primary {
   color: #fff;
 }
 .lang-pill {
-  margin-left: 12px;
   background: var(--overlay);
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -1970,13 +2181,27 @@ img.flag {
   .app {
     display: flex;
     flex-direction: column;
+    /*
+     * `dvh` suit la barre d'URL mobile : avec `100%`/`vh`, le bas de la carte
+     * (attribution, contrôles) passait sous la barre du navigateur.
+     */
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
   }
 
 .sidebar {
     position: relative;
     width: 100%;
     height: auto;
-    max-height: 46vh;
+    /*
+     * `flex: 0 0 auto` : sans cela, la boîte flex comprimait le volet pour
+     * laisser de la place à la carte (371 px au lieu des 435 px autorisés par
+     * `max-height`) et son contenu se coupait au milieu d'une ligne.
+     */
+    flex: 0 0 auto;
+    max-height: 54vh;
+    max-height: 54dvh;
     overflow-y: auto;
     padding: 54px 14px 14px;
     border-right: none;
@@ -1984,20 +2209,12 @@ img.flag {
     z-index: 3;
   }
 
-  /* Le contenu dépasse largement la hauteur du volet (206 px sur un écran de
-     844 px) : le bouton d'action se retrouvait coupé net par le bas, ce qui
-     dessinait une bande claire au-dessus du globe. On l'épingle : toujours
-     entier, toujours accessible, et le reste défile derrière lui. */
-  .cta-wrap {
-    position: sticky;
-    bottom: 0;
-    z-index: 2;
-    margin: 12px -14px 0;
-    padding: 10px 14px 12px;
-    background: var(--overlay-strong);
-    border-top: 1px solid var(--border);
-    backdrop-filter: blur(8px);
-  }
+  /*
+   * Le bouton n'est plus épinglé : sur un écran court, la zone `sticky`
+   * restait collée au bas du volet en même temps que la frise et les contrôles
+   * de carte, et recouvrait toute la partie basse. Le volet défile, le bouton
+   * est atteint normalement.
+   */
 
   /* En vue empilée, le volet se replie vers le haut : la flèche devient une
      barre pleine largeur, toujours visible (le bord du panneau est hors écran). */
@@ -2052,7 +2269,12 @@ img.flag {
     position: relative;
     inset: auto;
     flex: 1 1 auto;
-    min-height: 54vh;
+    /*
+     * Plus de `min-height: 54vh` : avec le volet à 54vh, le total dépassait
+     * 100vh et le bas de la carte (globe, attribution) était rogné de 20 à
+     * 75 px selon l'écran. La carte prend simplement la hauteur restante.
+     */
+    min-height: 0;
     z-index: 0;
   }
 
@@ -2085,7 +2307,7 @@ img.flag {
   /* Sans cette limite, le sélecteur (dont l'option la plus longue fait
      « Jour/Nuit + Frontières ») débordait de la ligne. */
   .ctrl-right select {
-    max-width: 152px;
+    max-width: 100%;
     min-width: 0;
   }
 
@@ -2277,4 +2499,120 @@ img.flag {
 .globe-tip .ms {
   color: #3fb950;
   font-family: Consolas, monospace;
+}
+
+/* -------------------------------------------------- telephone en paysage */
+
+/*
+ * En paysage, la pile volet + carte ne laisse presque rien a la carte : sur un
+ * iPhone 6 (667 x 375), le volet prenait 202 px, la frise et les controles se
+ * chevauchaient, et le bas du globe etait rogne. On repasse donc dans la
+ * disposition "volet lateral", comme sur grand ecran : la carte garde toute
+ * la hauteur, la frise reste au-dessus de l'attribution Leaflet.
+ */
+@media (max-width: 680px) and (max-height: 560px) and (orientation: landscape) {
+  .app {
+    display: block;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 240px;
+    height: 100%;
+    max-height: none;
+    padding: 48px 14px 14px;
+    border-right: 1px solid var(--border);
+    border-bottom: none;
+  }
+
+  /* Le bouton de repli redevient la pastille du coin, pas la barre pleine largeur. */
+  .sidebar .collapse {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 26px;
+    height: 26px;
+    margin: 0;
+    padding: 0;
+    border-radius: 6px;
+    font-size: 15px;
+  }
+
+  .sidebar .collapse .chev,
+  .panel-open .chev {
+    transform: none;
+  }
+
+  /* Et le panneau replie, l'onglet vertical colle au bord gauche. */
+  .panel-open {
+    position: absolute;
+    top: 52px;
+    left: 0;
+    right: auto;
+    width: 24px;
+    height: 48px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border-strong);
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+  }
+
+  .canvas-wrap {
+    position: absolute;
+    inset: 0;
+    left: 240px;
+    flex: none;
+    min-height: 0;
+  }
+
+  /* Volet replie : la carte reprend toute la largeur, sans bande vide. */
+  .app--panel-closed .canvas-wrap {
+    left: 0;
+  }
+
+  .app--panel-closed .controls,
+  .app--panel-closed .timeline-stack {
+    left: 36px;
+  }
+
+  .controls {
+    position: absolute;
+    top: 56px;
+    left: 256px;
+    right: 12px;
+    bottom: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .ctrl-left,
+  .ctrl-right {
+    justify-content: flex-start;
+  }
+
+  /* Centree sur la carte seule, jamais sous le volet. */
+  .timeline-stack {
+    left: 256px;
+    right: 12px;
+    bottom: 40px;
+    transform: none;
+    max-width: none;
+  }
+
+  .timeline {
+    max-width: 100%;
+  }
+}
+/* Ecrans etroits : les deux boutons secondaires ne tiennent pas cote a cote. */
+@media (max-width: 480px) {
+  .actions {
+    grid-template-columns: 1fr;
+  }
 }

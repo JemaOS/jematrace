@@ -422,6 +422,37 @@ ull = cadrage normal (traceroute / frise).
    */
   const cableLight = prefs.view === '2d' && look.basemap.light === true;
 
+  /**
+   * Hauteur réelle du bloc de contrôles, publiée en CSS (`--controls-h`).
+   *
+   * En vue empilée, la frise se place au-dessus des contrôles. Leur hauteur
+   * varie : ils tiennent sur deux lignes sur un écran étroit et la ligne du
+   * sélecteur d'apparence peut elle-même passer à la suivante. Une valeur
+   * fixe en CSS produisait un recouvrement ; la mesure le supprime.
+   */
+  const controlsObserver = useRef<ResizeObserver | null>(null);
+  /**
+   * Ref-callback et non `useRef` + effet : le bloc de contrôles n'existe
+   * qu'une fois les données chargées. Un effet monté au démarrage ne voyait
+   * donc jamais l'élément, et la variable restait vide — d'où le recouvrement
+   * de la frise en vue empilée.
+   */
+  const setControlsRef = useCallback((el: HTMLDivElement | null) => {
+    controlsObserver.current?.disconnect();
+    controlsObserver.current = null;
+    if (!el) return;
+    const apply = () => {
+      document.documentElement.style.setProperty(
+        '--controls-h',
+        `${Math.round(el.getBoundingClientRect().height)}px`,
+      );
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    controlsObserver.current = observer;
+  }, []);
+
   const run = useCallback(
     async (text: string, options?: { mode?: RouteMode; demo?: boolean }) => {
       setBusy(true);
@@ -630,8 +661,8 @@ ull = cadrage normal (traceroute / frise).
   };
 
   return (
-    <div className="app">
-      <header className="topbar">
+    <div className={panelOpen ? 'app' : 'app app--panel-closed'}>
+      <header className={panelOpen ? 'topbar' : 'topbar topbar--floating'}>
         <button className="brand inline-brand" onClick={goHome} title="Retour à l'accueil">
           Jema<span>Trace</span>
         </button>
@@ -738,7 +769,7 @@ ull = cadrage normal (traceroute / frise).
       <TimelineBar timeline={timeline} />
 
       {/* Regroupés pour que la vue empilée les ancre d'un bloc, sans chevauchement. */}
-      <div className="controls">
+      <div className="controls" ref={setControlsRef}>
         <div className="ctrl-left">
           <div className="seg">
             <button className={prefs.view === '3d' ? 'on' : ''} onClick={() => setPrefs({ ...prefs, view: '3d' })}>
