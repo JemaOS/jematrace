@@ -16,12 +16,12 @@
     <!--
       Thème appliqué avant le premier rendu : sans ce script, une page en thème
       clair s'afficherait une fraction de seconde en sombre. La préférence est
-      lue dans le même cookie que le reste de l'application ; sans choix
-      explicite, on suit le thème clair/sombre du système.
+      lue dans `gt2_theme_mode` (system/dark/light) ; sans choix explicite, on
+      suit immédiatement le thème clair/sombre du système.
     -->
     <script>
       try {
-        var m = document.cookie.match(/(?:^|; )gt2_theme=([^;]*)/);
+        var m = document.cookie.match(/(?:^|; )gt2_theme_mode=([^;]*)/);
         var pref = m ? decodeURIComponent(m[1]) : 'system';
         // `system` (valeur par défaut) ou cookie inconnu : on interroge l'OS.
         if (pref !== 'light' && pref !== 'dark') {

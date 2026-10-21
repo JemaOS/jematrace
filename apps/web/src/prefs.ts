@@ -1,6 +1,12 @@
 /**
  * Préférences utilisateur, stockées en cookies avec le même préfixe que le site
  * de référence (`gt2_`), donc mêmes noms et mêmes valeurs.
+ *
+ * Le thème utilise `gt2_theme_mode` (`system` | `dark` | `light`) : l'ancien
+ * cookie `gt2_theme` ne contenait que `dark` | `light` et ne permettait pas de
+ * distinguer un choix explicite d'un ancien réglage par défaut. Il n'est donc
+ * plus lu (seuls les nouveaux choix explicites comptent), ce qui garantit que
+ * les visiteurs existants suivent enfin le thème de leur système.
  */
 
 export type ViewMode = '3d' | '2d';
@@ -27,7 +33,7 @@ export interface Prefs {
   cities: boolean;
   /** Mode geek. Cookie `gt2_geek`. */
   geek: boolean;
-  /** Thème de l'interface. Cookie `gt2_theme` : `system` | `dark` | `light`. */
+  /** Thème de l'interface. Cookie `gt2_theme_mode` : `system` | `dark` | `light`. */
   theme: Theme;
 }
 
@@ -57,7 +63,9 @@ function writeCookie(name: string, value: string): void {
 
 /** Lit les préférences depuis les cookies, en retombant sur les valeurs par défaut. */
 export function readPrefs(): Prefs {
-  const themePref = readCookie(`${PREFIX}theme`);
+  // L'ancien cookie `gt2_theme` est volontairement ignoré : il forçait un
+  // thème explicite chez les visiteurs qui n'avaient jamais fait ce choix.
+  const themePref = readCookie(`${PREFIX}theme_mode`);
   return {
     view: readCookie(`${PREFIX}view`) === '2d' ? '2d' : '3d',
     route: readCookie(`${PREFIX}route`) === 'line' ? 'line' : 'topo',
@@ -65,7 +73,6 @@ export function readPrefs(): Prefs {
     cables: readCookie(`${PREFIX}cables`) !== '0',
     cities: readCookie(`${PREFIX}cities`) === '1',
     geek: readCookie(`${PREFIX}geek`) === '1',
-    // Une valeur absente ou inconnue (première visite, ancien cookie) suit l'OS.
     theme: themePref === 'light' || themePref === 'dark' ? themePref : 'system',
   };
 }
@@ -78,5 +85,13 @@ export function writePrefs(p: Prefs): void {
   writeCookie(`${PREFIX}cables`, p.cables ? '1' : '0');
   writeCookie(`${PREFIX}cities`, p.cities ? '1' : '0');
   writeCookie(`${PREFIX}geek`, p.geek ? '1' : '0');
-  writeCookie(`${PREFIX}theme`, p.theme);
+  writeCookie(`${PREFIX}theme_mode`, p.theme);
+  if (p.theme === 'system') {
+    // Ne laisse pas derrière lui un ancien `gt2_theme=light|dark` qui pourrait
+    // être relu par le site de référence.
+    document.cookie = `${PREFIX}theme=; path=/; max-age=0; SameSite=Lax`;
+  } else {
+    // Maintient l'ancien cookie pour la compatibilité avec jemaos.com.
+    writeCookie(`${PREFIX}theme`, p.theme);
+  }
 }
