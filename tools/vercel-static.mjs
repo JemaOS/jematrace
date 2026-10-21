@@ -24,6 +24,25 @@ if (!existsSync(from)) {
   process.exit(1);
 }
 
+/*
+ * Donnees chargees a l'execution : si l'une manque, la fonctionnalite
+ * correspondante disparait sans erreur visible (fiches de cables vides, par
+ * exemple). Le build echoue ici plutot que de livrer une app amputee.
+ */
+const required = [
+  'world/world-110m.json',
+  'world/cities.json',
+  'world/cities-named.json',
+  'world/cables.geo.json',
+  'world/cable-meta.json',
+  'world/year-summaries.json',
+];
+const missing = required.filter((file) => !existsSync(join(from, ...file.split('/'))));
+if (missing.length > 0) {
+  console.error(`[vercel-static] donnees absentes du build : ${missing.join(', ')}`);
+  process.exit(1);
+}
+
 rmSync(to, { recursive: true, force: true });
 cpSync(from, to, { recursive: true });
 console.log('[vercel-static] apps/web/dist → public/');

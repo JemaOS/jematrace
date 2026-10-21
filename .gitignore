@@ -17,5 +17,7 @@ data/geo/ne_10m_places.geojson
 .vercel
 .vercel
 .env*
-public/
+# Copie statique generee par tools/vercel-static.mjs a la racine du depot.
+# Les fichiers servis par l'app vivent dans apps/web/public et sont versionnes.
+/public/
 api/bundle.mjs
