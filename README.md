@@ -20,6 +20,10 @@
 
 [Features](#-features) · [Screenshots](#-screenshots) · [Getting started](#-getting-started) · [Architecture](#-architecture) · [License](#-license)
 
+<br>
+
+<sub>**Keywords:** traceroute · visual traceroute · tracert · mtr · tracepath · network map · 3D globe · hop visualization · latency map · geolocation · AS lookup · submarine cables · network diagnostics · ping path · three.js · React · TypeScript · Fastify</sub>
+
 </div>
 
 ![JemaTrace — 3D globe](screenshots/main.png)
@@ -45,6 +49,14 @@
 | Light | Dark |
 | :---: | :---: |
 | <img src="screenshots/main.png" alt="JemaTrace — light" /> | <img src="screenshots/main-dark.png" alt="JemaTrace — dark" /> |
+
+| 2D map | Preferences |
+| :---: | :---: |
+| <img src="screenshots/map-2d.png" alt="JemaTrace — 2D map of a traceroute" /> | <img src="screenshots/preferences.png" alt="JemaTrace — preferences" /> |
+
+<p align="center">
+  <img src="screenshots/about.png" width="880" alt="JemaTrace — about" />
+</p>
 
 ---
 
