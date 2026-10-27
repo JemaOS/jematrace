@@ -2,28 +2,27 @@
  * Trace affichée à l'ouverture, pour que la page d'accueil montre tout de
  * suite un résultat plutôt qu'un écran vide.
  *
- * L'ancre est un point fixe (Cannes) : aucune IP de visiteur n'est envoyée ni
+ * La trace est **entièrement synthétique** : elle ne contient aucune IP ni
+ * aucune donnée issue d'une mesure réelle. Les sauts pointent vers des
+ * infrastructures publiques génériques (GTT/Paris, DE-CIX/Cologne, LINX/
+ * Londres, RIPE/Amsterdam) et la cible est un domaine de documentation
+ * réservé (`example.org`).
+ *
+ * L'ancre est un point fixe (Paris) : aucune IP de visiteur n'est envoyée ni
  * affichée, la démonstration est identique pour tout le monde.
  */
-export const DEMO_TRACE = `Détermination de l’itinéraire vers drop.jemaos.com [62.210.39.166]
+export const DEMO_TRACE = `Détermination de l’itinéraire vers www.example.org [193.0.0.1]
 avec un maximum de 30 sauts :
 
-  1     4 ms     4 ms     7 ms  192.168.1.1
-  2     7 ms     5 ms     6 ms  80.15.224.25
-  3    25 ms     6 ms     6 ms  92.184.150.30
-  4     7 ms     8 ms     7 ms  ae43-0.nimar202.rbci.orange.net [193.252.103.241]
-  5    17 ms    17 ms    17 ms  193.252.137.54
-  6    18 ms    18 ms    18 ms  193.251.131.111
-  7    18 ms    18 ms    20 ms  193.251.152.48
-  8    18 ms    18 ms    18 ms  212.47.224.7
-  9    29 ms    20 ms    17 ms  51.158.0.151
- 10     *        *        *     Délai d’attente de la demande dépassé.
- 11     *        *        *     Délai d’attente de la demande dépassé.
- 12    18 ms    18 ms    18 ms  62.210.39.166
+  1     4 ms     4 ms     5 ms  213.200.64.1
+  2     9 ms     8 ms     9 ms  80.81.192.1
+  3    14 ms    13 ms    14 ms  195.66.224.1
+  4     *        *        *     Délai d’attente de la demande dépassé.
+  5    21 ms    20 ms    21 ms  193.0.0.1
 `;
 
 /** Cible de la démonstration, lue dans l'en-tête de la trace. */
-export const DEMO_TARGET = 'drop.jemaos.com';
+export const DEMO_TARGET = 'www.example.org';
 
-/** Point de départ du trace de démonstration (Cannes), sans aucune IP. */
-export const DEMO_ANCHOR = { lat: 43.5513, lon: 7.0128 };
+/** Point de départ du trace de démonstration (Paris), sans aucune IP. */
+export const DEMO_ANCHOR = { lat: 48.8566, lon: 2.3522 };

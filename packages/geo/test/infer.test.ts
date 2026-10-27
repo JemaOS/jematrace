@@ -17,8 +17,8 @@ function hop(ttl: number, ip: string | null, host: string | null, rtt: number | 
 
 /** GeoIP volontairement bruité, comme le fournisseur réel : plusieurs villes sont fausses. */
 const GEO = new Map<string, GeoHint>([
-  ['80.15.224.25', { asn: 3215, asName: 'Orange', country: 'FR', city: 'Paris', lat: 48.8566, lon: 2.3522 }],
-  ['92.184.150.30', { asn: 3215, asName: 'Orange', country: 'FR', city: 'Paris', lat: 48.8566, lon: 2.3522 }],
+  ['203.0.113.25', { asn: 3215, asName: 'Orange', country: 'FR', city: 'Paris', lat: 48.8566, lon: 2.3522 }],
+  ['203.0.113.30', { asn: 3215, asName: 'Orange', country: 'FR', city: 'Paris', lat: 48.8566, lon: 2.3522 }],
   ['193.252.103.241', { asn: 3215, asName: 'Orange', country: 'FR', city: 'Rennes', lat: 48.1173, lon: -1.6778 }],
   ['193.252.137.54', { asn: 3215, asName: 'Orange', country: 'FR', city: 'Paris', lat: 48.8566, lon: 2.3522 }],
   ['154.54.38.157', { asn: 174, asName: 'Cogent', country: 'FR', city: 'Paris', lat: 48.8566, lon: 2.3522 }],
@@ -41,8 +41,8 @@ const GEO = new Map<string, GeoHint>([
 /** Sauts réels (le PTR est fourni directement, comme le ferait la résolution inverse). */
 const HOPS: Hop[] = [
   hop(1, '192.168.1.1', null, 3),
-  hop(2, '80.15.224.25', null, 4),
-  hop(3, '92.184.150.30', null, 7),
+  hop(2, '203.0.113.25', null, 4),
+  hop(3, '203.0.113.30', null, 7),
   hop(4, '193.252.103.241', 'ae43-0.nimar202.rbci.orange.net', 7),
   hop(5, '193.252.137.54', null, 17),
   hop(6, null, null, null),
@@ -138,9 +138,9 @@ describe('inferPath', () => {
 
 describe('ancrage sur la ville de d�part', () => {
   const GEO_FR = new Map<string, GeoHint>([
-    ['80.15.224.25', { asn: 174, asName: 'Orange', country: 'FR', city: 'Paris', lat: 48.8566, lon: 2.3522 }],
+    ['203.0.113.25', { asn: 174, asName: 'Orange', country: 'FR', city: 'Paris', lat: 48.8566, lon: 2.3522 }],
   ]);
-  const HOPS_FR = [hop(1, '80.15.224.25', null, 4)];
+  const HOPS_FR = [hop(1, '203.0.113.25', null, 4)];
 
   it('ram�ne un premier saut � faible latence sur l�ancre', () => {
     const [h] = inferPath({ hops: HOPS_FR, geo: GEO_FR, anchor: { lat: 43.5513, lon: 7.0128, city: 'Cannes' } });
@@ -150,7 +150,7 @@ describe('ancrage sur la ville de d�part', () => {
   });
 
   it('ne d�place pas un saut � forte latence', () => {
-    const [h] = inferPath({ hops: [hop(2, '80.15.224.25', null, 95)], geo: GEO_FR, anchor: { lat: 43.5513, lon: 7.0128, city: 'Cannes' } });
+    const [h] = inferPath({ hops: [hop(2, '203.0.113.25', null, 95)], geo: GEO_FR, anchor: { lat: 43.5513, lon: 7.0128, city: 'Cannes' } });
     expect(h!.city).toBe('Paris');
   });
 

@@ -11,7 +11,7 @@ describe('isPrivateIp', () => {
   });
 
   it('laisse passer les IP publiques', () => {
-    for (const ip of ['8.8.8.8', '80.15.224.25', '172.32.0.1', '192.169.1.1', '2606:4700::1111']) {
+    for (const ip of ['8.8.8.8', '203.0.113.25', '172.32.0.1', '192.169.1.1', '2606:4700::1111']) {
       expect(isPrivateIp(ip), ip).toBe(false);
     }
   });
@@ -107,7 +107,7 @@ describe('mtr --report', () => {
     expect(r.hops[0]!.host).toBe('_gateway');
     expect(r.hops[0]!.ip).toBeNull();
     expect(r.hops[0]!.rttMs).toEqual([0.5]);
-    expect(r.hops[1]!.ip).toBe('80.15.224.25');
+    expect(r.hops[1]!.ip).toBe('203.0.113.25');
     expect(r.hops[1]!.rttMs).toEqual([4.5]);
   });
 
@@ -150,8 +150,8 @@ describe('traceroute Linux réel (multipath, en-tête abîmé, CGNAT)', () => {
  1  _gateway (100.115.92.193)  0.021 ms  0.008 ms  0.006 ms
  2  100.115.92.25 (100.115.92.25)  0.265 ms  0.226 ms  0.534 ms
  3  192.168.1.1 (192.168.1.1)  3.163 ms  3.140 ms  3.119 ms
- 4  80.15.224.25 (80.15.224.25)  16.321 ms  16.300 ms  16.279 ms
- 5  92.184.150.30 (92.184.150.30)  16.258 ms  16.238 ms  16.217 ms
+ 4  203.0.113.25 (203.0.113.25)  16.321 ms  16.300 ms  16.279 ms
+ 5  203.0.113.30 (203.0.113.30)  16.258 ms  16.238 ms  16.217 ms
  6  ae43-0.nimar202.rbci.orange.net (193.252.103.241)  16.196 ms  14.870 ms  16.602 ms
  7  * * *
  8  72.14.203.56 (72.14.203.56)  16.470 ms 72.14.197.198 (72.14.197.198)  8.744 ms *
@@ -195,7 +195,7 @@ describe('tracepath crosh (sortie réelle)', () => {
  1:  livebox.home                                          3.456ms
  1:  livebox.home                                          3.139ms
  2:  no reply
- 3:  92.184.150.30                                         7.511ms
+ 3:  203.0.113.30                                         7.511ms
  4:  ae43-0.nimar202.rbci.orange.net                       8.622ms asymm  5
  5:  no reply
  6:  
@@ -256,8 +256,8 @@ describe('robustesse', () => {
     // Cas réel : une seule ligne, IP coupées par des espaces, une virgule à la
     // place d'un point, latences perdues et un numéro de saut décalé.
     const mangled =
-      'TRACEROUTE google.fr [172.217.18.9 9]  3  1 192.168.1.1 2 80.15.22 4.25 ' +
-      '92.184.150.30 4 193.252.1 03.24 1 5 *  6 72.14.20 3.56 7 172,217.18.9 9  Trace completed.';
+      'TRACEROUTE google.fr [172.217.18.9 9]  3  1 192.168.1.1 2 203.0.11 3.25 ' +
+      '203.0.113.30 4 193.252.1 03.24 1 5 *  6 72.14.20 3.56 7 172,217.18.9 9  Trace completed.';
 
     const r = parseTraceroute(mangled);
 
@@ -266,8 +266,8 @@ describe('robustesse', () => {
     expect(r.hops.map((h) => h.ttl)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(r.hops.map((h) => h.ip)).toEqual([
       '192.168.1.1',
-      '80.15.224.25',
-      '92.184.150.30',
+      '203.0.113.25',
+      '203.0.113.30',
       '193.252.103.241',
       null,
       '72.14.203.56',
@@ -292,7 +292,7 @@ describe('robustesse', () => {
     // les IP suivent dans le bon ordre, et la cible contient une virgule.
     const mangled =
       "TRACEROUTE Alibaba. com [47,246,136.253]  1  6 7 8' 9  \u3001  192.168.1.1 2  " +
-      '80.15.22 4.25 39 92.184.150.30  193.252.1 03.24 1 51 193.252.137.54  ' +
+      '203.0.11 3.25 39 203.0.113.30  193.252.1 03.24 1 51 193.252.137.54  ' +
       '154.54.38.157 154.54.88.218 *  10  11 12 13  * * *  47.246.136.253  Trace completed.';
 
     const r = parseTraceroute(mangled);
@@ -303,8 +303,8 @@ describe('robustesse', () => {
     // Les numéros de saut étant incohérents, on numérote dans l'ordre des IP.
     expect(r.hops.map((h) => h.ip)).toEqual([
       '192.168.1.1',
-      '80.15.224.25',
-      '92.184.150.30',
+      '203.0.113.25',
+      '203.0.113.30',
       '193.252.103.241',
       '193.252.137.54',
       '154.54.38.157',
@@ -320,8 +320,8 @@ describe('robustesse', () => {
     // Ici les TTL collent aux IP : on garde la numérotation d'origine, trous
     // compris (le saut 5 n'a pas répondu).
     const r = parseTraceroute(
-      'TRACEROUTE google.fr [172.217.18.9 9] 1 192.168.1.1 2 80.15.22 4.25 ' +
-        '92.184.150.30 4 193.252.1 03.24 1 5 * 6 72.14.20 3.56 7 172,217.18.9 9',
+      'TRACEROUTE google.fr [172.217.18.9 9] 1 192.168.1.1 2 203.0.11 3.25 ' +
+        '203.0.113.30 4 193.252.1 03.24 1 5 * 6 72.14.20 3.56 7 172,217.18.9 9',
     );
     expect(r.hops.map((h) => h.ttl)).toEqual([1, 2, 3, 4, 5, 6, 7]);
     expect(r.hops[4]!.ip).toBeNull();
@@ -346,8 +346,8 @@ Nombre total de sauts : 13
 SAUT IP                 PING       PAYS             NOM D’HÔTE
 --------------------------------------------------------------------------------
 1    192.168.1.1        12.4 ms    Réseau local     -
-2    80.15.224.25       9.9 ms     France           -
-3    92.184.150.30      * * *      France           -
+2    203.0.113.25       9.9 ms     France           -
+3    203.0.113.30      * * *      France           -
 4    193.252.103.241    * * *      France           -
 5    193.252.137.54     32.6 ms    France           -
 6                       * * *      Inconnu          -
@@ -376,14 +376,14 @@ SAUT IP                 PING       PAYS             NOM D’HÔTE
 
   it('extrait les IP et les latences des lignes renseignées', () => {
     expect(r.hops[0]).toMatchObject({ ip: '192.168.1.1', rttMs: [12.4], private: true, timeout: false });
-    expect(r.hops[1]).toMatchObject({ ip: '80.15.224.25', rttMs: [9.9], timeout: false });
+    expect(r.hops[1]).toMatchObject({ ip: '203.0.113.25', rttMs: [9.9], timeout: false });
     expect(r.hops[4]).toMatchObject({ ip: '193.252.137.54', rttMs: [32.6] });
     expect(r.hops[12]).toMatchObject({ ip: '47.246.137.105', rttMs: [114.5] });
   });
 
   it('garde les sauts muets à leur place', () => {
     // « * * * » avec IP connue et sans IP.
-    expect(r.hops[2]).toMatchObject({ ip: '92.184.150.30', rttMs: [], timeout: true });
+    expect(r.hops[2]).toMatchObject({ ip: '203.0.113.30', rttMs: [], timeout: true });
     expect(r.hops[5]).toMatchObject({ ip: null, rttMs: [], timeout: true });
     expect(r.hops[8]!.ttl).toBe(9);
     expect(r.hops[8]!.timeout).toBe(true);

@@ -488,15 +488,16 @@ ull = cadrage normal (traceroute / frise).
       setIsDemo(Boolean(options?.demo));
       try {
         // L'ancre, c'est l'IP publique du visiteur : elle sert à géolocaliser
-        // les premiers sauts, y compris pour la démonstration (sinon la trace
-        // d'accueil ne correspond pas à l'endroit d'où l'on regarde).
-        // Elle n'est jamais affichée : la ligne #0 est masquée en mode démo.
-        const clientIp = await detectClientIp();
+        // les premiers sauts.
+        // En mode démonstration, on n'envoie JAMAIS cette IP : la trace
+        // d'accueil est identique pour tout le monde et ne doit rien exposer
+        // du visiteur (ni IP, ni ville). On utilise alors l'ancre fixe.
+        const clientIp = options?.demo ? null : await detectClientIp();
         const res = await inspect(
           text,
           options?.mode ?? prefs.route,
           clientIp ?? undefined,
-          // Repli si la détection d'IP échoue (hors ligne, bloqueur).
+          // Repli si la détection d'IP échoue (hors ligne, bloqueur) ou en démo.
           clientIp ? undefined : DEMO_ANCHOR,
         );
         if (res.error || !res.result) {

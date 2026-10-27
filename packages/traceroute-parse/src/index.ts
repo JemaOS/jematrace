@@ -527,7 +527,7 @@ function recoverMangledTrace(text: string): Recovered | null {
   /**
    * Les numéros de saut ne sont exploitables que s'ils collent à la réalité.
    * Sur un collage très abîmé, ils se retrouvent séparés des IP — typiquement
-   * `1 6 7 8 9 … 192.168.1.1 80.15.224.25 …` : les associer produirait un
+   * `1 6 7 8 9 … 192.168.1.1 203.0.113.25 …` : les associer produirait un
    * ordre faux (et un nombre de sauts absurde). Dans ce cas, seule la suite des
    * IP est fiable : on numérote dans leur ordre d'apparition, ce qui garantit
    * que la dernière IP de la sortie reste bien le dernier saut.
@@ -584,7 +584,7 @@ function recoverMangledTrace(text: string): Recovered | null {
  *   SAUT IP                 PING       PAYS             NOM D’HÔTE
  *   ------------------------------------------------------------------
  *   1    192.168.1.1        12.4 ms    Réseau local     -
- *   3    92.184.150.30      * * *      France           -
+ *   3    203.0.113.30      * * *      France           -
  *   6                       * * *      Inconnu          -
  *
  * Les colonnes sont alignées par au moins deux espaces ; un saut muet laisse la

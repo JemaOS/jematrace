@@ -7,8 +7,8 @@ export const TRACERT_FR = String.raw`Détermination de l’itinéraire vers exem
 avec un maximum de 30 sauts :
 
   1     3 ms     3 ms     3 ms  192.168.1.1
-  2     6 ms     5 ms     4 ms  80.15.224.25
-  3     8 ms     8 ms     7 ms  92.184.150.30
+  2     6 ms     5 ms     4 ms  203.0.113.25
+  3     8 ms     8 ms     7 ms  203.0.113.30
   4     7 ms     7 ms    10 ms  ae43-0.nimar202.rbci.orange.net [193.252.103.241]
   5    17 ms    20 ms    17 ms  193.252.137.54
   6     *        *        *     Délai d’attente de la demande dépassé.
@@ -46,7 +46,7 @@ export const TRACEROUTE_LINUX = String.raw`traceroute to example.com (93.184.216
 export const MTR_REPORT = String.raw`Start: 2026-10-17T20:00:00+0000
 HOST: myhost                       Loss%   Snt   Last   Avg  Best  Wrst StDev
   1.|-- _gateway                    0.0%    10    0.5   0.6   0.4   1.2   0.2
-  2.|-- 80.15.224.25                 0.0%    10    4.5   4.8   4.1   6.0   0.5
+  2.|-- 203.0.113.25                 0.0%    10    4.5   4.8   4.1   6.0   0.5
   3.|-- ???                         100.0%    10    0.0   0.0   0.0   0.0   0.0
   4.|-- ae43-0.nimar202.rbci.orange.net  0.0%    10    7.0   7.2   6.8   8.0   0.3
   5.|-- 103.224.182.245              0.0%    10  158.0 158.2 157.5 160.1   0.9`;
@@ -54,8 +54,8 @@ HOST: myhost                       Loss%   Snt   Last   Avg  Best  Wrst StDev
 export const TRACEPATH = String.raw` 1?: [LOCALHOST]                                         pmtu 1500
  1:  192.168.1.1                                           0.512ms
  1:  192.168.1.1                                           0.412ms
- 2:  80.15.224.25                                          4.512ms
- 2:  80.15.224.25                                          4.412ms
+ 2:  203.0.113.25                                          4.512ms
+ 2:  203.0.113.25                                          4.412ms
  3:  193.252.103.241                                       7.500ms pmtu 1492
  3:  193.252.103.241                                       7.400ms asymm 4
  4:  no reply
